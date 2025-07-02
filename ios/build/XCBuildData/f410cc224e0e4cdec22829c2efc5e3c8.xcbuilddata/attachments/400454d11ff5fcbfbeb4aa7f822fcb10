@@ -1,0 +1,28 @@
+{
+  "" : {
+    "diagnostics" : "/Users/hashimhameem/Desktop/Projects/JavidNama/iqbal_literature/ios/build/Runner.build/Debug-iphoneos/Runner.build/Objects-normal/arm64/Runner-master.dia",
+    "emit-module-dependencies" : "/Users/hashimhameem/Desktop/Projects/JavidNama/iqbal_literature/ios/build/Runner.build/Debug-iphoneos/Runner.build/Objects-normal/arm64/Runner-master-emit-module.d",
+    "emit-module-diagnostics" : "/Users/hashimhameem/Desktop/Projects/JavidNama/iqbal_literature/ios/build/Runner.build/Debug-iphoneos/Runner.build/Objects-normal/arm64/Runner-master-emit-module.dia",
+    "swift-dependencies" : "/Users/hashimhameem/Desktop/Projects/JavidNama/iqbal_literature/ios/build/Runner.build/Debug-iphoneos/Runner.build/Objects-normal/arm64/Runner-master.swiftdeps"
+  },
+  "/Users/hashimhameem/Desktop/Projects/JavidNama/iqbal_literature/ios/Runner/AppDelegate.swift" : {
+    "const-values" : "/Users/hashimhameem/Desktop/Projects/JavidNama/iqbal_literature/ios/build/Runner.build/Debug-iphoneos/Runner.build/Objects-normal/arm64/AppDelegate.swiftconstvalues",
+    "dependencies" : "/Users/hashimhameem/Desktop/Projects/JavidNama/iqbal_literature/ios/build/Runner.build/Debug-iphoneos/Runner.build/Objects-normal/arm64/AppDelegate.d",
+    "diagnostics" : "/Users/hashimhameem/Desktop/Projects/JavidNama/iqbal_literature/ios/build/Runner.build/Debug-iphoneos/Runner.build/Objects-normal/arm64/AppDelegate.dia",
+    "index-unit-output-path" : "/Runner.build/Debug-iphoneos/Runner.build/Objects-normal/arm64/AppDelegate.o",
+    "llvm-bc" : "/Users/hashimhameem/Desktop/Projects/JavidNama/iqbal_literature/ios/build/Runner.build/Debug-iphoneos/Runner.build/Objects-normal/arm64/AppDelegate.bc",
+    "object" : "/Users/hashimhameem/Desktop/Projects/JavidNama/iqbal_literature/ios/build/Runner.build/Debug-iphoneos/Runner.build/Objects-normal/arm64/AppDelegate.o",
+    "swift-dependencies" : "/Users/hashimhameem/Desktop/Projects/JavidNama/iqbal_literature/ios/build/Runner.build/Debug-iphoneos/Runner.build/Objects-normal/arm64/AppDelegate.swiftdeps",
+    "swiftmodule" : "/Users/hashimhameem/Desktop/Projects/JavidNama/iqbal_literature/ios/build/Runner.build/Debug-iphoneos/Runner.build/Objects-normal/arm64/AppDelegate~partial.swiftmodule"
+  },
+  "/Users/hashimhameem/Desktop/Projects/JavidNama/iqbal_literature/ios/build/Runner.build/Debug-iphoneos/Runner.build/DerivedSources/GeneratedAssetSymbols.swift" : {
+    "const-values" : "/Users/hashimhameem/Desktop/Projects/JavidNama/iqbal_literature/ios/build/Runner.build/Debug-iphoneos/Runner.build/Objects-normal/arm64/GeneratedAssetSymbols.swiftconstvalues",
+    "dependencies" : "/Users/hashimhameem/Desktop/Projects/JavidNama/iqbal_literature/ios/build/Runner.build/Debug-iphoneos/Runner.build/Objects-normal/arm64/GeneratedAssetSymbols.d",
+    "diagnostics" : "/Users/hashimhameem/Desktop/Projects/JavidNama/iqbal_literature/ios/build/Runner.build/Debug-iphoneos/Runner.build/Objects-normal/arm64/GeneratedAssetSymbols.dia",
+    "index-unit-output-path" : "/Runner.build/Debug-iphoneos/Runner.build/Objects-normal/arm64/GeneratedAssetSymbols.o",
+    "llvm-bc" : "/Users/hashimhameem/Desktop/Projects/JavidNama/iqbal_literature/ios/build/Runner.build/Debug-iphoneos/Runner.build/Objects-normal/arm64/GeneratedAssetSymbols.bc",
+    "object" : "/Users/hashimhameem/Desktop/Projects/JavidNama/iqbal_literature/ios/build/Runner.build/Debug-iphoneos/Runner.build/Objects-normal/arm64/GeneratedAssetSymbols.o",
+    "swift-dependencies" : "/Users/hashimhameem/Desktop/Projects/JavidNama/iqbal_literature/ios/build/Runner.build/Debug-iphoneos/Runner.build/Objects-normal/arm64/GeneratedAssetSymbols.swiftdeps",
+    "swiftmodule" : "/Users/hashimhameem/Desktop/Projects/JavidNama/iqbal_literature/ios/build/Runner.build/Debug-iphoneos/Runner.build/Objects-normal/arm64/GeneratedAssetSymbols~partial.swiftmodule"
+  }
+}

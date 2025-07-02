@@ -1,0 +1,111 @@
+# Uncomment this line to define a global platform for your project
+platform :ios, '13.0'
+
+# CocoaPods analytics sends network stats synchronously affecting flutter build latency.
+ENV['COCOAPODS_DISABLE_STATS'] = 'true'
+
+project 'Runner', {
+  'Debug' => :debug,
+  'Profile' => :release,
+  'Release' => :release,
+}
+
+def flutter_root
+  generated_xcode_build_settings_path = File.expand_path(File.join('..', 'Flutter', 'Generated.xcconfig'), __FILE__)
+  unless File.exist?(generated_xcode_build_settings_path)
+    raise "#{generated_xcode_build_settings_path} must exist. If you're running pod install manually, make sure flutter pub get is executed first"
+  end
+
+  File.foreach(generated_xcode_build_settings_path) do |line|
+    matches = line.match(/FLUTTER_ROOT\=(.*)/)
+    return matches[1].strip if matches
+  end
+  raise "FLUTTER_ROOT not found in #{generated_xcode_build_settings_path}. Try deleting Generated.xcconfig, then run flutter pub get"
+end
+
+require File.expand_path(File.join('packages', 'flutter_tools', 'bin', 'podhelper'), flutter_root)
+
+flutter_ios_podfile_setup
+
+target 'Runner' do
+  use_frameworks! :linkage => :static
+
+  flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
+
+  target 'RunnerTests' do
+    inherit! :search_paths
+  end
+end
+
+post_install do |installer|
+  # Fix for gRPC promise library build issue on Xcode 16
+  # Patch both gRPC-Core and gRPC-C++ copies of `basic_seq.h` to remove the stray
+  # `template` keyword that modern Clang rejects.
+  ["Pods/gRPC-Core/src/core/lib/promise/detail/basic_seq.h", \
+   "Pods/gRPC-C++/src/core/lib/promise/detail/basic_seq.h"].each do |file_to_patch|
+    next unless File.exist?(file_to_patch)
+
+    puts "gRPC Patcher: Processing #{file_to_patch}"
+    text = File.read(file_to_patch)
+    original = 'Traits::template CallSeqFactory'
+    replacement = 'Traits::CallSeqFactory'
+
+    if text.include?(original)
+      puts "gRPC Patcher: Patching #{file_to_patch}..."
+      text.gsub!(original, replacement)
+      File.open(file_to_patch, "w") { |f| f.puts text }
+      puts "gRPC Patcher: Successfully patched #{file_to_patch}."
+    else
+      puts "gRPC Patcher: #{file_to_patch} already patched or not affected."
+    end
+  end
+
+  installer.pods_project.targets.each do |target|
+    flutter_additional_ios_build_settings(target)
+
+    # Exclude Intel simulator slices to avoid clang '-G' flag issue on Xcode 16
+    target.build_configurations.each do |config|
+      config.build_settings['EXCLUDED_ARCHS[sdk=iphonesimulator*]'] = 'i386 x86_64'
+      config.build_settings['VALID_ARCHS[sdk=iphonesimulator*]'] = 'arm64'
+      
+      # Set minimum iOS version to fix gRPC-Core compilation
+      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '13.0'
+      
+      # Fix C++ language standard for gRPC-Core
+      config.build_settings['CLANG_CXX_LANGUAGE_STANDARD'] = 'c++17'
+      config.build_settings['CLANG_CXX_LIBRARY'] = 'libc++'
+
+      # Remove any compiler flag that starts with '-G' which clang 18 rejects
+      flags = config.build_settings['OTHER_CFLAGS']
+      if flags.is_a?(Array)
+        config.build_settings['OTHER_CFLAGS'] = flags.reject { |f| f.start_with?('-G') }
+      elsif flags.is_a?(String)
+        config.build_settings['OTHER_CFLAGS'] = flags.split(' ').reject { |f| f.start_with?('-G') }.join(' ')
+      end
+      
+      # Fix C++ flags for gRPC-Core
+      cxx_flags = config.build_settings['OTHER_CPLUSPLUSFLAGS']
+      if cxx_flags.is_a?(Array)
+        config.build_settings['OTHER_CPLUSPLUSFLAGS'] = cxx_flags.reject { |f| f.start_with?('-G') }
+      elsif cxx_flags.is_a?(String)
+        config.build_settings['OTHER_CPLUSPLUSFLAGS'] = cxx_flags.split(' ').reject { |f| f.start_with?('-G') }.join(' ')
+      end
+
+      # Allow non-modular headers inside framework modules (fixes Firebase.h include issue)
+      config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
+    end
+
+    # Clean per-file compiler flags (only present on native build targets)
+    if target.respond_to?(:source_build_phase) && target.source_build_phase
+      target.source_build_phase.files.each do |file|
+        next unless file.settings && file.settings['COMPILER_FLAGS']
+        f = file.settings['COMPILER_FLAGS']
+        if f.is_a?(String)
+          file.settings['COMPILER_FLAGS'] = f.split(' ').reject { |flag| flag.start_with?('-G') }.join(' ')
+        elsif f.is_a?(Array)
+          file.settings['COMPILER_FLAGS'] = f.reject { |flag| flag.start_with?('-G') }
+        end
+      end
+    end
+  end
+end
