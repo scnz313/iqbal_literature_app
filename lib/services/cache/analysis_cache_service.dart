@@ -246,28 +246,89 @@ class AnalysisCacheService {
 
   Future<void> _addToHistory(String item, String type, String timestamp) async {
     await _initialize();
-    final history = _cacheBox.get(_historyKey) ?? [];
-    final historyList = List<Map<String, dynamic>>.from(history);
+    
+    // Get current history or create empty list
+    var history = _cacheBox.get(_historyKey);
+    List<Map<String, dynamic>> historyList;
+    
+    if (history == null) {
+      historyList = [];
+    } else {
+      // Only convert to list if we need to modify it
+      historyList = List<Map<String, dynamic>>.from(history);
+    }
 
-    // Add to beginning of list
-    historyList.insert(0, {
+    // Check if we're adding a duplicate (same item within last 5 entries)
+    bool isDuplicate = false;
+    for (int i = 0; i < historyList.length && i < 5; i++) {
+      if (historyList[i]['item'] == item && historyList[i]['type'] == type) {
+        isDuplicate = true;
+        break;
+      }
+    }
+    
+    // Skip if it's a recent duplicate
+    if (isDuplicate) {
+      return;
+    }
+
+    // Create new entry
+    final newEntry = {
       'item': item,
       'type': type,
       'timestamp': timestamp,
-    });
+    };
 
-    // Keep only the latest 100 items
-    if (historyList.length > 100) {
-      historyList.removeRange(100, historyList.length);
+    // Implement efficient insertion with size limit
+    if (historyList.length >= 100) {
+      // Remove oldest entry before adding new one
+      historyList.removeLast();
     }
+    
+    // Add to beginning
+    historyList.insert(0, newEntry);
 
+    // Save back to cache
     await _cacheBox.put(_historyKey, historyList);
   }
 
   Future<List<Map<String, dynamic>>> getAnalysisHistory() async {
     await _initialize();
-    final history = _cacheBox.get(_historyKey) ?? [];
+    final history = _cacheBox.get(_historyKey);
+    
+    if (history == null) {
+      return [];
+    }
+    
+    // Return a defensive copy to prevent external modifications
     return List<Map<String, dynamic>>.from(history);
+  }
+
+  // Add method to clean up old history entries
+  Future<void> cleanupOldHistory({Duration maxAge = const Duration(days: 30)}) async {
+    await _initialize();
+    final history = _cacheBox.get(_historyKey);
+    
+    if (history == null || (history as List).isEmpty) {
+      return;
+    }
+    
+    final historyList = List<Map<String, dynamic>>.from(history);
+    final cutoffTime = DateTime.now().subtract(maxAge);
+    
+    // Remove entries older than maxAge
+    historyList.removeWhere((entry) {
+      try {
+        final timestamp = DateTime.parse(entry['timestamp']);
+        return timestamp.isBefore(cutoffTime);
+      } catch (e) {
+        // Remove entries with invalid timestamps
+        return true;
+      }
+    });
+    
+    await _cacheBox.put(_historyKey, historyList);
+    debugPrint('🧹 Cleaned up ${history.length - historyList.length} old history entries');
   }
 
   Future<void> clearCache() async {
