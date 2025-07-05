@@ -6,6 +6,9 @@ import '../../../features/poems/models/poem.dart';
 import '../../../widgets/analysis/word_analysis_sheet.dart';
 import '../widgets/poem_stanza_widget.dart';
 import '../widgets/poem_notes_sheet.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
+import '../../../core/themes/app_decorations.dart';
+import '../../../core/themes/text_styles.dart';
 
 class PoemDetailView extends GetView<PoemController> {
   const PoemDetailView({super.key});
@@ -433,66 +436,118 @@ class PoemDetailView extends GetView<PoemController> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
+      barrierColor: Colors.black.withOpacity(0.05),
+      useRootNavigator: true,
       builder: (context) => Container(
-        decoration: BoxDecoration(
-          color: Theme.of(context).scaffoldBackgroundColor,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.2),
-              blurRadius: 10,
-              spreadRadius: 5,
-            ),
-          ],
-        ),
-        height: MediaQuery.of(context).size.height * 0.8,
-        child: Column(
-          children: [
-            // Handle
-            Container(
-              width: 40,
-              height: 4,
-              margin: const EdgeInsets.only(top: 10, bottom: 14),
-              decoration: BoxDecoration(
-                color: Theme.of(context).dividerColor,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            // Title and close button
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Notes for "${poem.title}"',
-                    style: Theme.of(context).textTheme.titleLarge,
+        decoration: AppDecorations.bottomSheetDecoration(context),
+        child: SafeArea(
+          child: SizedBox(
+            height: MediaQuery.of(context).size.height * 0.8,
+            child: Column(
+              children: [
+                // Drag handle
+                Container(
+                  width: 40.w,
+                  height: 4.h,
+                  margin: EdgeInsets.only(top: 12.h, bottom: 8.h),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.4),
+                    borderRadius: BorderRadius.circular(2.r),
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: () {
-                      controller.toggleNotesVisibility(false);
-                      Navigator.pop(context);
-                    },
+                ),
+                
+                // Header
+                _buildNotesHeader(context, poem),
+                
+                // Content - Direct PoemNotesSheet without wrapping
+                Expanded(
+                  child: PoemNotesSheet(
+                    poemId: poem.id,
+                    poemTitle: poem.title,
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-            const Divider(),
-            // Content - Direct PoemNotesSheet without wrapping
-            Expanded(
-              child: PoemNotesSheet(
-                poemId: poem.id,
-                poemTitle: poem.title,
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     ).then((_) {
       // Always reset state when sheet is closed
       controller.toggleNotesVisibility(false);
     });
+  }
+
+  Widget _buildNotesHeader(BuildContext context, Poem poem) {
+    final theme = Theme.of(context);
+    final isUrdu = poem.title.contains(RegExp(r'[\u0600-\u06FF]'));
+    
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
+      decoration: BoxDecoration(
+        border: Border(
+          bottom: BorderSide(
+            color: theme.colorScheme.outline.withOpacity(0.1),
+            width: 1,
+          ),
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 50.w,
+            height: 50.w,
+            decoration: AppDecorations.iconContainerDecoration(
+              context,
+              theme.colorScheme.primary,
+            ),
+            child: Icon(
+              Icons.notes,
+              size: 24.w,
+              color: theme.colorScheme.primary,
+            ),
+          ),
+          SizedBox(width: 16.w),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: isUrdu 
+                  ? CrossAxisAlignment.end 
+                  : CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Notes',
+                  style: AppTextStyles.getTitleStyle(context).copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                SizedBox(height: 4.h),
+                Text(
+                  poem.title,
+                  style: AppTextStyles.getBodyStyle(context).copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                    fontFamily: isUrdu ? 'JameelNooriNastaleeq' : null,
+                    fontSize: isUrdu ? 14.sp : 12.sp,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textDirection: isUrdu ? TextDirection.rtl : TextDirection.ltr,
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.close),
+            onPressed: () {
+              controller.toggleNotesVisibility(false);
+              Navigator.pop(context);
+            },
+            style: IconButton.styleFrom(
+              backgroundColor: theme.colorScheme.surfaceVariant.withOpacity(0.5),
+              padding: EdgeInsets.all(8.w),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
