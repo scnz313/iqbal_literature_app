@@ -37,6 +37,7 @@ import 'config/providers/font_scale_provider.dart';
 import 'core/localization/app_translations.dart';
 import 'data/models/notes/word_note.dart';
 import 'data/repositories/note_repository.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 Future<void> main() async {
   // Ensure that plugin services are initialized so that `availableCameras()`
@@ -88,14 +89,12 @@ Future<void> main() async {
       Hive.registerAdapter(WordNoteAdapter());
     }
 
-    // Clear Hive boxes to start fresh - remove this after fixing caching issues
+    // Load environment variables
     try {
-      final booksBox = await Hive.openBox('books_cache');
-      final favoritesBox = await Hive.openBox('favorite_books');
-      await booksBox.clear();
-      debugPrint('🧹 Cleared books cache to fix null ID issue');
+      await dotenv.load(fileName: ".env");
+      debugPrint('✅ Environment variables loaded');
     } catch (e) {
-      debugPrint('⚠️ Error clearing book cache: $e');
+      debugPrint('⚠️ Failed to load .env file: $e');
     }
 
     // Preload fonts for PDF export in the background
@@ -106,8 +105,14 @@ Future<void> main() async {
     // Initialize services
     await CacheService.init();
 
-    // Initialize GeminiAPI with newer key
-    GeminiAPI.configure("AIzaSyC8sY9B8jI7cpdv8DFbMSmSVqjkwfH_ARQ");
+    // Initialize GeminiAPI with environment variable
+    final geminiApiKey = dotenv.env['GEMINI_API_KEY'];
+    if (geminiApiKey != null && geminiApiKey.isNotEmpty) {
+      GeminiAPI.configure(geminiApiKey);
+      debugPrint('✅ Gemini API configured');
+    } else {
+      debugPrint('⚠️ Gemini API key not found in environment variables');
+    }
 
     // Initialize core dependencies
     final prefs = await SharedPreferences.getInstance();
