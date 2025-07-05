@@ -149,6 +149,14 @@ class SearchController extends GetxController {
     urduSearchController.dispose();
     _debounceTimer?.cancel();
     scrollController.dispose();
+    
+    // Properly dispose of speech service to prevent memory leaks
+    if (isListening.value) {
+      _speechService.stop().catchError((error) {
+        debugPrint('Error stopping speech service during dispose: $error');
+      });
+    }
+    
     super.onClose();
   }
 

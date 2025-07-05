@@ -106,8 +106,13 @@ Future<void> main() async {
     // Initialize services
     await CacheService.init();
 
-    // Initialize GeminiAPI with newer key
-    GeminiAPI.configure("AIzaSyC8sY9B8jI7cpdv8DFbMSmSVqjkwfH_ARQ");
+    // Initialize GeminiAPI with environment variable
+    const geminiApiKey = String.fromEnvironment('GEMINI_API_KEY');
+    if (geminiApiKey.isNotEmpty) {
+      GeminiAPI.configure(geminiApiKey);
+    } else {
+      debugPrint('⚠️ GEMINI_API_KEY environment variable not set');
+    }
 
     // Initialize core dependencies
     final prefs = await SharedPreferences.getInstance();

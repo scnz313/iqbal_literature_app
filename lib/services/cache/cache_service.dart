@@ -52,7 +52,14 @@ class CacheService {
 
   // Cache poem analysis
   static Future<bool> cacheAnalysis(String poemId, Map<String, String> analysis) async {
-    return await set('${_analysisPrefix}$poemId', analysis);
+    try {
+      // Ensure we're storing a clean map with proper types
+      final cleanAnalysis = Map<String, String>.from(analysis);
+      return await set('${_analysisPrefix}$poemId', cleanAnalysis);
+    } catch (e) {
+      debugPrint('❌ Error caching analysis: $e');
+      return false;
+    }
   }
 
   // Get cached poem analysis
@@ -60,7 +67,18 @@ class CacheService {
     final data = get('${_analysisPrefix}$poemId');
     if (data == null) return null;
     
-    return Map<String, String>.from(data);
+    try {
+      // Safely convert dynamic map to string map
+      if (data is Map) {
+        return Map<String, String>.from(
+          data.map((key, value) => MapEntry(key.toString(), value.toString()))
+        );
+      }
+      return null;
+    } catch (e) {
+      debugPrint('❌ Error converting cached analysis to Map<String, String>: $e');
+      return null;
+    }
   }
 
   // Cache timeline data
