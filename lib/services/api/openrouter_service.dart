@@ -8,14 +8,15 @@ import '../../services/api/gemini_api.dart';
 
 class OpenRouterService {
   // API Keys and service flags
-  static const String? _geminiApiKey =
-      'AIzaSyC8sY9B8jI7cpdv8DFbMSmSVqjkwfH_ARQ';
-  static const String? _openrouterKey =
-      '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';
+  static final String? _geminiApiKey =
+      const String.fromEnvironment('GEMINI_API_KEY');
+  static final String? _openrouterKey =
+      const String.fromEnvironment('OPENROUTER_API_KEY');
   static const String _geminiUrl =
       'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
 
-  // Updated working models only - removed OpenAI models
+  // IMPORTANT: Never commit private API keys to source control.
+  // Pass them at build-time using --dart-define or set as environment variables.
   static const Map<String, Map<String, dynamic>> _modelConfigs = {
     'primary': {
       'url': 'https://openrouter.ai/api/v1/chat/completions',
@@ -24,6 +25,10 @@ class OpenRouterService {
         'meta/llama-2-70b-chat', // First fallback
         'nousresearch/nous-hermes-2-mixtral-8x7b-dpo', // Second fallback
       ],
+    },
+    // Added fallback entry so that _analyzeWithDeepseek does not crash
+    'fallback': {
+      'url': 'https://openrouter.ai/api/v1/chat/completions',
     },
   };
 
