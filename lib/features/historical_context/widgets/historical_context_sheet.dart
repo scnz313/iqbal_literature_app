@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../../../features/poems/controllers/poem_controller.dart';
 import '../../../features/poems/models/poem.dart';
+import '../../../core/themes/app_decorations.dart';
+import '../../../core/themes/text_styles.dart';
 import '../models/historical_context.dart';
 import '../../../utils/markdown_clean.dart';
 
@@ -16,64 +19,134 @@ class HistoricalContextSheet extends StatelessWidget {
   static void show(BuildContext context, Poem poem) {
     showModalBottomSheet(
       context: context,
-      isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => DraggableScrollableSheet(
-        initialChildSize: 0.8, // Increased for better visibility
-        minChildSize: 0.4,
-        maxChildSize: 0.95,
-        builder: (_, scrollController) => HistoricalContextSheet(poem: poem),
-      ),
+      barrierColor: Colors.black.withOpacity(0.05),
+      isScrollControlled: true,
+      useRootNavigator: true,
+      builder: (context) => HistoricalContextSheet(poem: poem),
     );
   }
 
   @override
   Widget build(BuildContext context) {
     final controller = Get.find<PoemController>();
+    final theme = Theme.of(context);
+    final isUrdu = poem.title.contains(RegExp(r'[\u0600-\u06FF]'));
 
     return Container(
-      decoration: BoxDecoration(
-        color: Theme.of(context).scaffoldBackgroundColor,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+      decoration: AppDecorations.bottomSheetDecoration(context),
+      child: SafeArea(
+        child: SizedBox(
+          height: MediaQuery.of(context).size.height * 0.85,
+          child: Column(
+            children: [
+              // Drag handle
+              Container(
+                width: 40.w,
+                height: 4.h,
+                margin: EdgeInsets.only(top: 12.h, bottom: 8.h),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.onSurfaceVariant.withOpacity(0.4),
+                  borderRadius: BorderRadius.circular(2.r),
+                ),
+              ),
+              
+              // Header
+              _buildHeader(context),
+              
+              // Content
+              Expanded(
+                child: FutureBuilder<Map<String, dynamic>?>(
+                  future: controller.getHistoricalContext(poem.id),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return _buildLoadingState();
+                    }
+
+                    if (snapshot.hasError) {
+                      return _buildErrorState(snapshot.error.toString());
+                    }
+
+                    final data = snapshot.data;
+                    if (data == null || data.isEmpty) {
+                      return _buildErrorState('No historical context available');
+                    }
+
+                    final historicalContext = HistoricalContext.fromMap(data);
+                    return _buildContent(context, historicalContext);
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    );
+  }
+
+  Widget _buildHeader(BuildContext context) {
+    final theme = Theme.of(context);
+    final isUrdu = poem.title.contains(RegExp(r'[\u0600-\u06FF]'));
+    
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
+      decoration: BoxDecoration(
+        border: Border(
+          bottom: BorderSide(
+            color: theme.colorScheme.outline.withOpacity(0.1),
+            width: 1,
+          ),
+        ),
+      ),
+      child: Row(
         children: [
-          ListTile(
-            title: Text(
-              'Historical Context',
-              style: Theme.of(context).textTheme.titleLarge,
+          Container(
+            width: 50.w,
+            height: 50.w,
+            decoration: AppDecorations.iconContainerDecoration(
+              context,
+              theme.colorScheme.primary,
             ),
-            subtitle: Text(
-              poem.title,
-              style: const TextStyle(fontFamily: 'JameelNooriNastaleeq'),
-            ),
-            trailing: IconButton(
-              icon: const Icon(Icons.close),
-              onPressed: () => Navigator.pop(context),
+            child: Icon(
+              Icons.history_edu,
+              size: 24.w,
+              color: theme.colorScheme.primary,
             ),
           ),
-          const Divider(),
+          SizedBox(width: 16.w),
           Expanded(
-            child: FutureBuilder<Map<String, dynamic>?>(
-              future: controller.getHistoricalContext(poem.id),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return _buildLoadingState();
-                }
-
-                if (snapshot.hasError) {
-                  return _buildErrorState(snapshot.error.toString());
-                }
-
-                final data = snapshot.data;
-                if (data == null || data.isEmpty) {
-                  return _buildErrorState('No historical context available');
-                }
-
-                final historicalContext = HistoricalContext.fromMap(data);
-                return _buildContent(context, historicalContext);
-              },
+            child: Column(
+              crossAxisAlignment: isUrdu 
+                  ? CrossAxisAlignment.end 
+                  : CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Historical Context',
+                  style: AppTextStyles.getTitleStyle(context).copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                SizedBox(height: 4.h),
+                Text(
+                  poem.title,
+                  style: AppTextStyles.getBodyStyle(context).copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                    fontFamily: isUrdu ? 'JameelNooriNastaleeq' : null,
+                    fontSize: isUrdu ? 14.sp : 12.sp,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textDirection: isUrdu ? TextDirection.rtl : TextDirection.ltr,
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.close),
+            onPressed: () => Navigator.pop(context),
+            style: IconButton.styleFrom(
+              backgroundColor: theme.colorScheme.surfaceVariant.withOpacity(0.5),
+              padding: EdgeInsets.all(8.w),
             ),
           ),
         ],
@@ -82,26 +155,70 @@ class HistoricalContextSheet extends StatelessWidget {
   }
 
   Widget _buildLoadingState() {
-    return const Center(
+    return Padding(
+      padding: EdgeInsets.all(20.w),
       child: Column(
-        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          CircularProgressIndicator(),
-          SizedBox(height: 16),
-          Text('Analyzing historical context...'),
+          Container(
+            width: 80.w,
+            height: 80.w,
+            decoration: AppDecorations.iconContainerDecoration(
+              context,
+              Theme.of(context).colorScheme.primary,
+            ),
+            child: Icon(
+              Icons.history_edu,
+              size: 40.w,
+              color: Theme.of(context).colorScheme.primary,
+            ),
+          ),
+          SizedBox(height: 24.h),
+          Text(
+            'Loading historical context...',
+            style: AppTextStyles.getTitleStyle(context).copyWith(
+              color: Theme.of(context).colorScheme.primary,
+            ),
+          ),
+          SizedBox(height: 16.h),
+          const CircularProgressIndicator(),
         ],
       ),
     );
   }
 
   Widget _buildErrorState(String message) {
-    return Center(
+    return Padding(
+      padding: EdgeInsets.all(20.w),
       child: Column(
-        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.error_outline, color: Colors.red, size: 48),
-          const SizedBox(height: 16),
-          Text(message, textAlign: TextAlign.center),
+          Container(
+            width: 80.w,
+            height: 80.w,
+            decoration: AppDecorations.iconContainerDecoration(
+              context,
+              Theme.of(context).colorScheme.error,
+            ),
+            child: Icon(
+              Icons.error_outline,
+              size: 40.w,
+              color: Theme.of(context).colorScheme.error,
+            ),
+          ),
+          SizedBox(height: 24.h),
+          Text(
+            'No Context Available',
+            style: AppTextStyles.getTitleStyle(context).copyWith(
+              color: Theme.of(context).colorScheme.error,
+            ),
+          ),
+          SizedBox(height: 8.h),
+          Text(
+            message,
+            style: AppTextStyles.getBodyStyle(context),
+            textAlign: TextAlign.center,
+          ),
         ],
       ),
     );
@@ -109,23 +226,23 @@ class HistoricalContextSheet extends StatelessWidget {
 
   Widget _buildContent(BuildContext context, HistoricalContext data) {
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(16.w),
       children: [
         // Basic sections
         _buildSection(context, 'Year', data.year),
-        const SizedBox(height: 24),
+        SizedBox(height: 20.h),
         _buildExpandableSection(
           context,
           'Historical Context',
           data.historicalContext.cleaned(),
         ),
-        const SizedBox(height: 24),
+        SizedBox(height: 16.h),
         _buildExpandableSection(
           context,
           'Significance',
           data.significance.cleaned(),
         ),
-        const SizedBox(height: 24),
+        SizedBox(height: 16.h),
 
         // Additional sections from API
         if (data.culturalImportance?.isNotEmpty ?? false)
@@ -170,7 +287,7 @@ class HistoricalContextSheet extends StatelessWidget {
             'Theme',
             data.theme!.cleaned(),
           ),
-        const SizedBox(height: 24),
+        SizedBox(height: 20.h),
       ],
     );
   }
@@ -180,24 +297,37 @@ class HistoricalContextSheet extends StatelessWidget {
       return const SizedBox.shrink();
     }
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          title,
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.bold,
-            color: Theme.of(context).primaryColor,
+    return Container(
+      padding: EdgeInsets.all(16.w),
+      decoration: AppDecorations.cardDecoration(context),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.event,
+                size: 20.w,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+              SizedBox(width: 8.w),
+              Text(
+                title,
+                style: AppTextStyles.getTitleStyle(context).copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
           ),
-        ),
-        const SizedBox(height: 12),
-        SelectableText(
-          content.cleaned(),
-          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-            height: 1.6,
+          SizedBox(height: 12.h),
+          Text(
+            content.cleaned(),
+            style: AppTextStyles.getBodyStyle(context).copyWith(
+              height: 1.5,
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -206,39 +336,63 @@ class HistoricalContextSheet extends StatelessWidget {
       return const SizedBox.shrink();
     }
 
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-
-    return Card(
-      elevation: 0,
-      margin: EdgeInsets.zero,
+    return Container(
+      margin: EdgeInsets.only(bottom: 16.h),
+      decoration: AppDecorations.cardDecoration(context),
       child: ExpansionTile(
-        title: Text(
-          title,
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.bold,
-            // Use appropriate colors for light/dark mode
-            color: isDarkMode 
-                ? Colors.white.withOpacity(0.87) 
-                : Theme.of(context).primaryColor,
+        tilePadding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 4.h),
+        childrenPadding: EdgeInsets.all(16.w),
+        leading: Container(
+          padding: EdgeInsets.all(8.w),
+          decoration: AppDecorations.iconContainerDecoration(
+            context,
+            Theme.of(context).colorScheme.primary,
+          ),
+          child: Icon(
+            _getSectionIcon(title),
+            color: Theme.of(context).colorScheme.primary,
+            size: 20.w,
           ),
         ),
-        iconColor: isDarkMode ? Colors.white70 : null, // Also adjust icon color
-        collapsedIconColor: isDarkMode ? Colors.white70 : null,
+        title: Text(
+          title,
+          style: AppTextStyles.getTitleStyle(context).copyWith(
+            fontWeight: FontWeight.w600,
+          ),
+        ),
         children: [
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: SelectableText(
-              content.cleaned(),
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                height: 1.6,
-                color: isDarkMode 
-                    ? Colors.white.withOpacity(0.87)
-                    : Colors.black.withOpacity(0.87),
-              ),
+          Text(
+            content.cleaned(),
+            style: AppTextStyles.getBodyStyle(context).copyWith(
+              height: 1.5,
             ),
           ),
         ],
       ),
     );
+  }
+
+  IconData _getSectionIcon(String title) {
+    final lowerTitle = title.toLowerCase();
+
+    if (lowerTitle.contains('cultural')) {
+      return Icons.groups;
+    } else if (lowerTitle.contains('religious')) {
+      return Icons.auto_stories;
+    } else if (lowerTitle.contains('political')) {
+      return Icons.gavel;
+    } else if (lowerTitle.contains('imagery')) {
+      return Icons.image;
+    } else if (lowerTitle.contains('metaphor')) {
+      return Icons.psychology;
+    } else if (lowerTitle.contains('symbolism')) {
+      return Icons.star;
+    } else if (lowerTitle.contains('theme')) {
+      return Icons.lightbulb_outline;
+    } else if (lowerTitle.contains('significance')) {
+      return Icons.emoji_events;
+    } else {
+      return Icons.history_edu;
+    }
   }
 }
