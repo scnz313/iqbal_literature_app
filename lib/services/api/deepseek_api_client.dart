@@ -5,9 +5,23 @@ import 'package:flutter/foundation.dart';
 class DeepSeekApiClient {
   // Updated to a more reliable API endpoint with fallback model
   static const String baseUrl = 'https://api.deepseek.com/v1/chat/completions';
-  static const String apiKey = 'sk-6ab4df9ffc434f89b9b41e06f0328a7e';
+  // IMPORTANT: Never commit private API keys to source control.
+  // Read them from environment variables at build/runtime instead.
+  static final String apiKey = const String.fromEnvironment('DEEPSEEK_API_KEY');
   static const String backupUrl = 'https://api.deepseek.ai/v1/chat/completions';
-  static const String backupKey = 'sk-6ab4df9ffc434f89b9b41e06f0328a7e';
+  static final String backupKey = const String.fromEnvironment('DEEPSEEK_BACKUP_API_KEY');
+
+  // Validate that the keys are provided; if not, throw a descriptive error once
+  // when the class is first used.
+  static void _validateKeys() {
+    if (apiKey.isEmpty || backupKey.isEmpty) {
+      throw StateError('DeepSeek API keys are missing.  Set DEEPSEEK_API_KEY and DEEPSEEK_BACKUP_API_KEY as --dart-define or environment variables.');
+    }
+  }
+
+  DeepSeekApiClient() {
+    _validateKeys();
+  }
 
   final http.Client _client = http.Client();
   bool _usePrimaryEndpoint = true;

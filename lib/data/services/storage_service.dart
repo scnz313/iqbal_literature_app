@@ -30,14 +30,22 @@ class StorageService {
 
   Future<bool> write<T>(String key, T value) async {
     try {
+      // Null values are not allowed in SharedPreferences
       if (value == null) return false;
-      switch (T) {
-        case String: return await prefs.setString(key, value as String);
-        case bool: return await prefs.setBool(key, value as bool);
-        case int: return await prefs.setInt(key, value as int);
-        case double: return await prefs.setDouble(key, value as double);
-        case const (List<String>): return await prefs.setStringList(key, value as List<String>);
-        default: return false;
+
+      if (value is String) {
+        return await prefs.setString(key, value);
+      } else if (value is bool) {
+        return await prefs.setBool(key, value);
+      } else if (value is int) {
+        return await prefs.setInt(key, value);
+      } else if (value is double) {
+        return await prefs.setDouble(key, value);
+      } else if (value is List<String>) {
+        return await prefs.setStringList(key, value);
+      } else {
+        debugPrint('Unsupported value type for key "$key" (${value.runtimeType})');
+        return false;
       }
     } catch (e) {
       debugPrint('Error writing to storage: $e');
