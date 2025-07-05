@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../controllers/daily_verse_controller.dart';
 import 'daily_verse_card.dart';
+import '../../../core/themes/app_decorations.dart';
 
 class DailyVerseBottomSheet extends StatelessWidget {
   const DailyVerseBottomSheet({Key? key}) : super(key: key);
@@ -13,17 +14,7 @@ class DailyVerseBottomSheet extends StatelessWidget {
     final textTheme = Theme.of(context).textTheme;
 
     return Container(
-      decoration: BoxDecoration(
-        color: colorScheme.surface,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 10,
-            offset: const Offset(0, -5),
-          ),
-        ],
-      ),
+      decoration: AppDecorations.bottomSheetDecoration(context),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [

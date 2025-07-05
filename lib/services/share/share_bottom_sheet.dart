@@ -8,6 +8,7 @@ import 'package:share_plus/share_plus.dart';
 import '../../features/poems/models/poem.dart';
 import 'share_service.dart';
 import 'pdf_creator.dart';
+import '../../core/themes/app_decorations.dart';
 
 class ShareBottomSheet extends StatelessWidget {
   final Poem poem;
@@ -505,17 +506,7 @@ class _ShareBottomSheetContentState extends State<_ShareBottomSheetContent> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: BoxDecoration(
-        color: Theme.of(context).scaffoldBackgroundColor,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.2),
-            blurRadius: 10,
-            spreadRadius: 5,
-          ),
-        ],
-      ),
+      decoration: AppDecorations.bottomSheetDecoration(context),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [

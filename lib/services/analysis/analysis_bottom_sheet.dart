@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:shimmer/shimmer.dart';
 import 'dart:math';
+import '../../core/themes/app_decorations.dart';
 
 // Add this class at the top, outside of any other class
 // Helper class for content sections
@@ -117,17 +118,7 @@ class _AnalysisBottomSheetState extends State<AnalysisBottomSheet>
       },
       child: Container(
         constraints: BoxConstraints(maxHeight: maxHeight),
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surface,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.1),
-              blurRadius: 10,
-              offset: const Offset(0, -2),
-            ),
-          ],
-        ),
+        decoration: AppDecorations.bottomSheetDecoration(context),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [

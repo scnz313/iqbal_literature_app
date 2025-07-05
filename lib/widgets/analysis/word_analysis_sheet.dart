@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/themes/app_decorations.dart';
 
 class WordAnalysisSheet extends StatelessWidget {
   final Map<String, dynamic> analysis;
@@ -26,17 +27,7 @@ class WordAnalysisSheet extends StatelessWidget {
         : ['Example not available'];
 
     return Container(
-      decoration: BoxDecoration(
-        color: Theme.of(context).scaffoldBackgroundColor,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 10,
-            spreadRadius: 5,
-          ),
-        ],
-      ),
+      decoration: AppDecorations.bottomSheetDecoration(context),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [

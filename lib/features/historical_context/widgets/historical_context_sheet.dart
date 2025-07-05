@@ -4,6 +4,7 @@ import '../../../features/poems/controllers/poem_controller.dart';
 import '../../../features/poems/models/poem.dart';
 import '../models/historical_context.dart';
 import '../../../utils/markdown_clean.dart';
+import '../../../core/themes/app_decorations.dart';
 
 class HistoricalContextSheet extends StatelessWidget {
   final Poem poem;
@@ -32,10 +33,7 @@ class HistoricalContextSheet extends StatelessWidget {
     final controller = Get.find<PoemController>();
 
     return Container(
-      decoration: BoxDecoration(
-        color: Theme.of(context).scaffoldBackgroundColor,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-      ),
+      decoration: AppDecorations.bottomSheetDecoration(context),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

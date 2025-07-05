@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/themes/app_decorations.dart';
 
 class HistoricalContextSheet extends StatelessWidget {
   final String bookTitle;
@@ -13,10 +14,7 @@ class HistoricalContextSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: BoxDecoration(
-        color: Theme.of(context).scaffoldBackgroundColor,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-      ),
+      decoration: AppDecorations.bottomSheetDecoration(context),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [

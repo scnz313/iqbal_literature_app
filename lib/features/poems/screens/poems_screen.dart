@@ -9,6 +9,7 @@ import '../../historical_context/widgets/historical_context_sheet.dart';
 import '../../../core/widgets/custom_app_bar.dart';
 import '../../../core/themes/text_styles.dart';
 import 'package:flutter/services.dart';
+import '../../../core/themes/app_decorations.dart';
 
 class PoemsScreen extends StatefulWidget {
   const PoemsScreen({super.key});
@@ -541,10 +542,7 @@ class PoemCard extends StatelessWidget {
       isScrollControlled: true,
       useRootNavigator: true,
       builder: (context) => Container(
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surface,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-      ),
+        decoration: AppDecorations.bottomSheetDecoration(context),
         child: SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,

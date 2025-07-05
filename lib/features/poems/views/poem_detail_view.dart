@@ -6,6 +6,7 @@ import '../../../features/poems/models/poem.dart';
 import '../../../widgets/analysis/word_analysis_sheet.dart';
 import '../widgets/poem_stanza_widget.dart';
 import '../widgets/poem_notes_sheet.dart';
+import '../../../core/themes/app_decorations.dart';
 
 class PoemDetailView extends GetView<PoemController> {
   const PoemDetailView({super.key});
@@ -434,17 +435,7 @@ class PoemDetailView extends GetView<PoemController> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => Container(
-        decoration: BoxDecoration(
-          color: Theme.of(context).scaffoldBackgroundColor,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.2),
-              blurRadius: 10,
-              spreadRadius: 5,
-            ),
-          ],
-        ),
+        decoration: AppDecorations.bottomSheetDecoration(context),
         height: MediaQuery.of(context).size.height * 0.8,
         child: Column(
           children: [
