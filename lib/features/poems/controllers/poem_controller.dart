@@ -45,6 +45,7 @@ class PoemController extends GetxController {
   final isAnalyzing = false.obs;
   final showAnalysis = false.obs;
   final poemAnalysis = ''.obs;
+  final Rx<Map<String, dynamic>> poemAnalysisStructured = Rx<Map<String, dynamic>>({});
 
   // Notes related properties
   final RxList<WordNote> currentPoemNotes = <WordNote>[].obs;
@@ -347,6 +348,7 @@ class PoemController extends GetxController {
     final context = analysis['context']?.toString() ?? 'Not available';
     final literaryAnalysis =
         analysis['analysis']?.toString() ?? 'Not available';
+    final relevance = analysis['relevance']?.toString() ?? 'Not available';
 
     // Return formatted string
     return '''Summary:
@@ -359,11 +361,20 @@ Historical & Cultural Context:
 $context
 
 Literary Analysis:
-$literaryAnalysis''';
+$literaryAnalysis
+
+Contemporary Relevance:
+$relevance''';
   }
 
   // Create fallback analysis content based on the poem text
   String _createFallbackAnalysis(String poemText, String errorContext) {
+    final analysisMap = _createFallbackAnalysisMap(poemText, errorContext);
+    return _formatPoemAnalysis(analysisMap);
+  }
+
+  // Create fallback analysis as structured Map
+  Map<String, dynamic> _createFallbackAnalysisMap(String poemText, String errorContext) {
     debugPrint('📝 Creating fallback analysis for poem');
 
     // Count lines for basic metrics
@@ -421,18 +432,17 @@ $literaryAnalysis''';
     // Limit to top 3 themes
     final themes = detectedThemes.take(3).map((theme) => '• $theme').join('\n');
 
-    return '''Summary:
-This ${lineCount > 10 ? 'longer' : 'short'} poem begins with "$firstLine" and contains $lineCount verse${lineCount > 1 ? 's' : ''}. It exemplifies Iqbal's distinctive style of using poetic metaphors to convey philosophical ideas. The poem appears to explore themes typical in Iqbal's work, including spiritual awakening and social consciousness.
-
-Themes:
-$themes
-
-Historical & Cultural Context:
-This poem reflects Iqbal's philosophical outlook during the early 20th century when he was developing his ideas about self-realization (Khudi) and the revival of Islamic thought. Written during a time of political awakening in the Indian subcontinent, it captures the intellectual ferment of that era. Iqbal frequently addressed the spiritual and cultural identity of Muslims in his works.
-
-Literary Analysis:
-The poem employs Iqbal's characteristic use of symbolic language and metaphors. His poetry often balances between Persian literary traditions and Urdu expressive forms, creating a unique poetic voice. The verses likely contain philosophical depth that reflects Iqbal's training in both Eastern and Western philosophical traditions. Note that this is an offline analysis - for more detailed insights, please try again with an internet connection.
-''';
+    return {
+      'summary': '''This ${lineCount > 10 ? 'longer' : 'short'} poem begins with "$firstLine" and contains $lineCount verse${lineCount > 1 ? 's' : ''}. It exemplifies Iqbal's distinctive style of using poetic metaphors to convey philosophical ideas. The poem appears to explore themes typical in Iqbal's work, including spiritual awakening and social consciousness.''',
+      
+      'themes': themes,
+      
+      'context': '''This poem reflects Iqbal's philosophical outlook during the early 20th century when he was developing his ideas about self-realization (Khudi) and the revival of Islamic thought. Written during a time of political awakening in the Indian subcontinent, it captures the intellectual ferment of that era. Iqbal frequently addressed the spiritual and cultural identity of Muslims in his works.''',
+      
+      'analysis': '''The poem employs Iqbal's characteristic use of symbolic language and metaphors. His poetry often balances between Persian literary traditions and Urdu expressive forms, creating a unique poetic voice. The verses likely contain philosophical depth that reflects Iqbal's training in both Eastern and Western philosophical traditions. Note that this is an offline analysis - for more detailed insights, please try again with an internet connection.''',
+      
+      'relevance': '''Iqbal's poetry remains highly relevant today, particularly in addressing questions of identity, spiritual awakening, and social reform. His emphasis on self-empowerment and intellectual renewal continues to resonate with contemporary readers seeking personal and collective transformation. The themes explored in this poem speak to universal human experiences while maintaining cultural and spiritual authenticity.'''
+    };
   }
 
   Future<Map<String, dynamic>> analyzeWord(String word) async {
@@ -774,9 +784,13 @@ You MUST respond with ONLY a valid JSON object in this exact format, with no add
               await GeminiAPI.analyzePoemContent(poemText);
           debugPrint('✅ Gemini response received successfully');
 
-          // Format the response
+          // Store structured analysis for UI display
+          poemAnalysisStructured.value = response;
+          
+          // Format the response for text display
           final formattedResponse = _formatPoemAnalysis(response);
           poemAnalysis.value = formattedResponse;
+          showAnalysis.value = true;
           return formattedResponse;
         } catch (apiError) {
           debugPrint('⚠️ Gemini API error: $apiError');
@@ -785,9 +799,12 @@ You MUST respond with ONLY a valid JSON object in this exact format, with no add
       }
 
       // Fallback to local analysis
-      final fallbackAnalysis = _createFallbackAnalysis(
-          poemText, isOffline ? 'Offline mode' : 'API error');
+      final fallbackAnalysisMap = _createFallbackAnalysisMap(poemText, isOffline ? 'Offline mode' : 'API error');
+      poemAnalysisStructured.value = fallbackAnalysisMap;
+      
+      final fallbackAnalysis = _formatPoemAnalysis(fallbackAnalysisMap);
       poemAnalysis.value = fallbackAnalysis;
+      showAnalysis.value = true;
       return fallbackAnalysis;
     } catch (e) {
       debugPrint('❌ Analysis completely failed: $e');

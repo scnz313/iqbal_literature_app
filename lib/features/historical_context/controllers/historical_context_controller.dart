@@ -10,7 +10,19 @@ class HistoricalContextController extends GetxController {
   final RxBool isLoading = false.obs;
   final RxList<TimelineEvent> timelineEvents = <TimelineEvent>[].obs;
   final RxString error = ''.obs;
-  final DeepSeekApiClient _deepSeekClient = DeepSeekApiClient();
+  DeepSeekApiClient? _deepSeekClient;
+
+  @override
+  void onInit() {
+    super.onInit();
+    // Try to get DeepSeek client if it's available
+    try {
+      _deepSeekClient = Get.find<DeepSeekApiClient>();
+      debugPrint('✅ DeepSeek client found for historical context');
+    } catch (e) {
+      debugPrint('ℹ️ DeepSeek client not available for historical context');
+    }
+  }
 
   Future<void> loadTimelineData(String bookName, {String? timePeriod}) async {
     try {
@@ -51,17 +63,21 @@ class HistoricalContextController extends GetxController {
         }
       } catch (e) {
         debugPrint('⚠️ Gemini failed: $e');
-        // Try DeepSeek as fallback
-        try {
-          debugPrint('📝 Falling back to DeepSeek...');
-          final result =
-              await _deepSeekClient.getHistoricalContext(title, content);
-          final parsedResult = _parseHistoricalContext(result);
-          if (_isValidHistoricalContext(parsedResult)) {
-            return parsedResult;
+        // Try DeepSeek as fallback if available
+        if (_deepSeekClient != null) {
+          try {
+            debugPrint('📝 Falling back to DeepSeek...');
+            final result =
+                await _deepSeekClient!.getHistoricalContext(title, content);
+            final parsedResult = _parseHistoricalContext(result);
+            if (_isValidHistoricalContext(parsedResult)) {
+              return parsedResult;
+            }
+          } catch (e) {
+            debugPrint('❌ DeepSeek failed: $e');
           }
-        } catch (e) {
-          debugPrint('❌ DeepSeek failed: $e');
+        } else {
+          debugPrint('ℹ️ DeepSeek not available, using default context');
         }
       }
 

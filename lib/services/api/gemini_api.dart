@@ -6,7 +6,7 @@ import 'package:flutter/foundation.dart';
 /// Service class for interacting with Google's Gemini API
 class GeminiAPI {
   static const String _baseUrl =
-      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
   static String? _apiKey;
 
   /// Configure the API key for Gemini
@@ -23,7 +23,7 @@ class GeminiAPI {
   static Future<String> generateContent({
     required String prompt,
     double temperature = 0.7,
-    int maxTokens = 1000,
+    int maxTokens = 2000,
   }) async {
     if (!isConfigured) {
       throw Exception('Gemini API not configured. Call configure() first.');
@@ -39,6 +39,11 @@ class GeminiAPI {
           'Accept': 'application/json',
         },
         body: jsonEncode({
+          'systemInstruction': {
+            'parts': [
+              {'text': 'You are a literary scholar specializing in Allama Iqbal\'s poetry. Provide direct, structured analysis without showing your reasoning process. Be concise and focused.'}
+            ]
+          },
           'contents': [
             {
               'parts': [
@@ -49,28 +54,86 @@ class GeminiAPI {
           'generationConfig': {
             'temperature': temperature,
             'maxOutputTokens': maxTokens,
-            'topP': 1,
-            'topK': 40,
-          }
+            'topP': 0.95,
+            'topK': 32,
+            'responseMimeType': 'text/plain',
+          },
+          'safetySettings': [
+            {
+              'category': 'HARM_CATEGORY_HARASSMENT',
+              'threshold': 'BLOCK_NONE'
+            },
+            {
+              'category': 'HARM_CATEGORY_HATE_SPEECH',
+              'threshold': 'BLOCK_NONE'
+            },
+            {
+              'category': 'HARM_CATEGORY_SEXUALLY_EXPLICIT',
+              'threshold': 'BLOCK_NONE'
+            },
+            {
+              'category': 'HARM_CATEGORY_DANGEROUS_CONTENT',
+              'threshold': 'BLOCK_NONE'
+            }
+          ]
         }),
       );
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
 
-        // Check if the response has the expected structure
-        if (data['candidates'] == null ||
-            data['candidates'].isEmpty ||
-            data['candidates'][0]['content'] == null ||
-            data['candidates'][0]['content']['parts'] == null ||
-            data['candidates'][0]['content']['parts'].isEmpty ||
-            data['candidates'][0]['content']['parts'][0]['text'] == null) {
-          debugPrint('⚠️ Invalid response format from Gemini API');
+        // Check if the response has candidates
+        if (data['candidates'] == null || data['candidates'].isEmpty) {
+          debugPrint('⚠️ No candidates in Gemini API response');
           debugPrint('📄 Raw response: ${response.body}');
-          throw Exception('Invalid response format from Gemini API');
+          throw Exception('No candidates in Gemini API response');
         }
 
-        final content = data['candidates'][0]['content']['parts'][0]['text'];
+        final candidate = data['candidates'][0];
+        
+        // Check for finish reason issues
+        if (candidate['finishReason'] == 'MAX_TOKENS') {
+          debugPrint('⚠️ Response truncated due to max tokens limit');
+          // Continue processing but log the warning
+        }
+
+        // Try multiple content access patterns for different API versions
+        String? content;
+        
+        // Pattern 1: Standard format with parts array
+        if (candidate['content'] != null && 
+            candidate['content']['parts'] != null &&
+            candidate['content']['parts'].isNotEmpty &&
+            candidate['content']['parts'][0]['text'] != null) {
+          content = candidate['content']['parts'][0]['text'];
+        }
+        // Pattern 2: Direct text content (some API versions)
+        else if (candidate['content'] != null && candidate['content']['text'] != null) {
+          content = candidate['content']['text'];
+        }
+        // Pattern 3: Text directly in candidate
+        else if (candidate['text'] != null) {
+          content = candidate['text'];
+        }
+        // Pattern 4: Check for message content
+        else if (candidate['message'] != null && candidate['message']['content'] != null) {
+          content = candidate['message']['content'];
+        }
+
+        if (content == null || content.trim().isEmpty) {
+          debugPrint('⚠️ Empty or null content in Gemini API response');
+          debugPrint('📄 Raw response: ${response.body}');
+          
+          // Log the structure to help debug
+          debugPrint('📋 Response structure:');
+          debugPrint('- candidates[0]: ${candidate.keys.join(', ')}');
+          if (candidate['content'] != null) {
+            debugPrint('- content keys: ${candidate['content'].keys.join(', ')}');
+          }
+          
+          throw Exception('Empty content in Gemini API response');
+        }
+
         return content.toString().trim();
       }
 
@@ -105,28 +168,62 @@ class GeminiAPI {
       }
 
       final prompt =
-          '''Analyze this poem and provide a scholarly, insightful interpretation:
+          '''Analyze this poem by Allama Iqbal with exceptional depth, precision, and scholarly expertise. Provide a comprehensive, detailed analysis that demonstrates deep understanding of Iqbal's philosophy, literary techniques, and historical context.
+
+POEM:
 $text
 
-Format your response EXACTLY with these section headings and content style:
+Provide an extensive, scholarly analysis with these specific sections:
+
 SUMMARY:
-Write a clear, concise summary of the poem's main ideas and message (2-3 sentences).
+Write 6-8 detailed sentences that capture the poem's core message, philosophical significance, emotional impact, and unique contribution to Iqbal's body of work. Be specific about what the poem is actually saying, include direct textual references, and explain how it fits into Iqbal's broader philosophical framework.
 
 THEMES:
-• List the main theme with brief explanation
-• List another important theme with brief explanation
-• List a third significant theme if present
+Identify and thoroughly explain the major themes with extensive textual evidence:
+• **Primary Theme**: [What is the central message? Quote specific lines and explain their deeper meaning]
+• **Secondary Themes**: [What other important ideas appear? Provide detailed examples with line-by-line analysis]
+• **Philosophical Elements**: [How does this connect to Iqbal's philosophy of Khudi, self-realization, Islamic revival, or reconstruction of religious thought? Be specific]
+• **Spiritual Dimensions**: [What spiritual, mystical, or Sufi elements are present? Analyze the spiritual journey depicted]
+• **Social Commentary**: [What does the poem say about society, community, or human relationships?]
+• **Educational Messages**: [What lessons or guidance does the poem offer to readers?]
 
 HISTORICAL CONTEXT:
-Provide relevant historical and cultural background that helps understand the poem's context and significance. Mention Iqbal's philosophical ideas that are relevant to this work.
+Provide comprehensive background covering:
+- Precise dating of when this poem was likely written and the evidence for this timing
+- Detailed analysis of historical events that influenced Iqbal during this period
+- How this poem fits into Iqbal's intellectual and spiritual development journey
+- The social, political, and cultural context of early 20th century Muslim India
+- Connection to Iqbal's major works (Asrar-e-Khudi, Rumuz-e-Bekhudi, etc.) and philosophical evolution
+- Influence of Western philosophy, Islamic thought, and Persian literature on this work
+- The poem's role in the broader context of Islamic renaissance and reform movements
 
-ANALYSIS:
-Analyze the poem's literary techniques, symbolic meanings, and deeper philosophical implications. Highlight particularly significant lines or imagery and explain their meaning.''';
+LITERARY ANALYSIS:
+Examine the poem's literary craft in extensive detail:
+- **Structure and Form**: Analyze the poem's formal structure, meter, rhyme scheme, and organizational principles
+- **Language and Diction**: Comment on word choice, tone, register, and stylistic techniques
+- **Imagery and Symbolism**: Identify and interpret key metaphors, symbols, allegories, and their layered meanings
+- **Poetic Devices**: Explain literary techniques used (repetition, alliteration, parallelism, etc.) with specific examples
+- **Textual Analysis**: Quote exact lines and provide detailed line-by-line interpretation
+- **Comparative Context**: How this poem compares to other Iqbal works and contemporary Persian/Urdu poetry
+- **Translation Considerations**: If applicable, discuss how meaning is conveyed across languages
+- **Aesthetic Elements**: Comment on the poem's beauty, emotional resonance, and artistic achievement
+
+CONTEMPORARY RELEVANCE:
+Explain in detail how this poem applies to modern times:
+- What specific guidance does this poem offer to Muslims in the 21st century?
+- How does it address current global challenges, identity questions, and spiritual needs?
+- What practical wisdom can modern readers extract for personal development?
+- How do the poem's themes relate to contemporary issues in Muslim societies?
+- What universal human experiences does the poem illuminate?
+- How can educators, students, and spiritual seekers apply these insights?
+- Why does this message remain vital and transformative in our current era?
+
+Provide scholarly depth, use extensive evidence from the text, quote specific lines with detailed interpretation, and offer meaningful insights that help readers truly understand what makes this poem a masterpiece of Islamic literature and philosophy.''';
 
       final response = await generateContent(
         prompt: prompt,
-        temperature: 0.4, // Lower temperature for more consistent responses
-        maxTokens: 1000,
+        temperature: 0.1, // Very low temperature for precise, accurate responses
+        maxTokens: 8000, // Significantly increased from 4000 to 8000 for comprehensive analysis
       );
 
       debugPrint('📝 Raw Gemini Response: $response');
@@ -143,14 +240,16 @@ Analyze the poem's literary techniques, symbolic meanings, and deeper philosophi
         final summaryPattern = RegExp(r'SUMMARY:([^THEMES]+)', dotAll: true);
         final themesPattern = RegExp(r'THEMES:([^HISTORICAL]+)', dotAll: true);
         final contextPattern =
-            RegExp(r'HISTORICAL CONTEXT:([^ANALYSIS]+)', dotAll: true);
-        final analysisPattern = RegExp(r'ANALYSIS:(.+)', dotAll: true);
+            RegExp(r'HISTORICAL CONTEXT:([^LITERARY]+)', dotAll: true);
+        final analysisPattern = RegExp(r'LITERARY ANALYSIS:([^CONTEMPORARY]+)', dotAll: true);
+        final relevancePattern = RegExp(r'CONTEMPORARY RELEVANCE:(.+)', dotAll: true);
 
         // Extract content for each section
         final summaryMatch = summaryPattern.firstMatch(cleanedResponse);
         final themesMatch = themesPattern.firstMatch(cleanedResponse);
         final contextMatch = contextPattern.firstMatch(cleanedResponse);
         final analysisMatch = analysisPattern.firstMatch(cleanedResponse);
+        final relevanceMatch = relevancePattern.firstMatch(cleanedResponse);
 
         // Add each section to the result map
         typedResult['summary'] =
@@ -161,6 +260,8 @@ Analyze the poem's literary techniques, symbolic meanings, and deeper philosophi
             'Historical context not available';
         typedResult['analysis'] = analysisMatch?.group(1)?.trim() ??
             'Literary analysis not available';
+        typedResult['relevance'] = relevanceMatch?.group(1)?.trim() ??
+            'Contemporary relevance not available';
 
         // Log the extracted sections
         debugPrint('📊 Extracted sections:');
@@ -194,12 +295,19 @@ Analyze the poem's literary techniques, symbolic meanings, and deeper philosophi
             }
             currentSection = 'context';
             continue;
-          } else if (line.startsWith('ANALYSIS:')) {
+          } else if (line.contains('LITERARY ANALYSIS:')) {
             if (currentSection.isNotEmpty) {
               typedResult[currentSection] = sectionContent.trim();
               sectionContent = '';
             }
             currentSection = 'analysis';
+            continue;
+          } else if (line.contains('CONTEMPORARY RELEVANCE:')) {
+            if (currentSection.isNotEmpty) {
+              typedResult[currentSection] = sectionContent.trim();
+              sectionContent = '';
+            }
+            currentSection = 'relevance';
             continue;
           }
 
@@ -227,6 +335,9 @@ Analyze the poem's literary techniques, symbolic meanings, and deeper philosophi
       if (!typedResult.containsKey('analysis')) {
         typedResult['analysis'] = 'Literary analysis not available';
       }
+      if (!typedResult.containsKey('relevance')) {
+        typedResult['relevance'] = 'Contemporary relevance not available';
+      }
 
       // Final validation - ensure all values are strings
       typedResult.forEach((key, value) {
@@ -240,7 +351,8 @@ Analyze the poem's literary techniques, symbolic meanings, and deeper philosophi
         'summary',
         'themes',
         'context',
-        'analysis'
+        'analysis',
+        'relevance'
       ];
       for (final key in expectedKeys) {
         if (!typedResult.containsKey(key) || typedResult[key] == null) {
@@ -250,7 +362,9 @@ Analyze the poem's literary techniques, symbolic meanings, and deeper philosophi
                   ? 'Themes not available'
                   : key == 'context'
                       ? 'Historical context not available'
-                      : 'Literary analysis not available';
+                      : key == 'analysis'
+                          ? 'Literary analysis not available'
+                          : 'Contemporary relevance not available';
         }
       }
 
@@ -276,32 +390,155 @@ Analyze the poem's literary techniques, symbolic meanings, and deeper philosophi
         'summary': 'Unable to analyze poem at this time.',
         'themes': 'Analysis currently unavailable.',
         'context': 'Please check your internet connection and try again later.',
-        'analysis': 'We encountered an error during analysis: $e'
+        'analysis': 'We encountered an error during analysis: $e',
+        'relevance': 'Contemporary relevance analysis unavailable.'
       };
     }
   }
 
-  /// Provides a basic local analysis when APIs are unavailable
+  /// Provides a meaningful local analysis when APIs are unavailable
   static Map<String, dynamic> _getLocalFallbackAnalysis(String text) {
-    // Very basic analysis based on text length and patterns
+    // Deep analysis based on text patterns, structure, and Iqbal's thematic elements
     final String firstLine = text.split('\n').first.trim();
-    final int lineCount =
-        text.split('\n').where((line) => line.trim().isNotEmpty).length;
-
-    return <String, dynamic>{
-      'summary':
-          'This poem contains $lineCount lines and begins with "$firstLine". '
-              'A detailed analysis is currently unavailable due to network connectivity issues.',
-      'themes':
-          '• Self-reflection and introspection\n• Nature and spirituality\n• Human experience',
-      'context':
-          'Iqbal\'s poetry often explores themes of self-discovery, spiritual awakening, '
-              'and the relationship between humanity and divine purpose. '
-              'His work is deeply influenced by Islamic philosophy and Persian literary traditions.',
-      'analysis': 'The poem employs typical Iqbalian literary devices including metaphor, symbolism, '
-          'and philosophical reflection. The structure follows traditional Urdu/Persian poetic forms. '
-          'For a more detailed analysis, please try again when internet connectivity is restored.'
+    final int lineCount = text.split('\n').where((line) => line.trim().isNotEmpty).length;
+    final List<String> lines = text.split('\n').where((line) => line.trim().isNotEmpty).toList();
+    
+    // Advanced keyword and thematic analysis
+    final String lowerText = text.toLowerCase();
+    
+    // Theme detection with more sophisticated patterns
+    Map<String, bool> themes = {
+      'khudi': lowerText.contains('خودی') || lowerText.contains('self') || lowerText.contains('soul') || lowerText.contains('khudi'),
+      'ishq': lowerText.contains('عشق') || lowerText.contains('love') || lowerText.contains('passion') || lowerText.contains('ishq'),
+      'nature': lowerText.contains('بلبل') || lowerText.contains('گل') || lowerText.contains('bird') || lowerText.contains('flower') || lowerText.contains('garden'),
+      'divine': lowerText.contains('خدا') || lowerText.contains('الله') || lowerText.contains('god') || lowerText.contains('divine') || lowerText.contains('allah'),
+      'freedom': lowerText.contains('آزادی') || lowerText.contains('freedom') || lowerText.contains('liberty') || lowerText.contains('azadi'),
+      'knowledge': lowerText.contains('علم') || lowerText.contains('knowledge') || lowerText.contains('wisdom') || lowerText.contains('ilm'),
+      'youth': lowerText.contains('جوان') || lowerText.contains('youth') || lowerText.contains('young'),
+      'nation': lowerText.contains('قوم') || lowerText.contains('nation') || lowerText.contains('millat') || lowerText.contains('qaum'),
     };
+    
+    // Analyze structural elements
+    bool hasQuestions = text.contains('?') || text.contains('کیا') || text.contains('کون');
+    bool hasExclamations = text.contains('!') || text.contains('اے');
+    bool hasRepetition = _detectRepetition(lines);
+    
+    // Determine poem type based on length and structure
+    String poemType = lineCount <= 4 ? 'concise quatrain or rubai' : 
+                     lineCount <= 10 ? 'short lyrical piece' :
+                     lineCount <= 20 ? 'moderate ghazal or nazm' : 'extended philosophical composition';
+    
+    return <String, dynamic>{
+      'summary': _generateDetailedSummary(firstLine, lineCount, poemType, themes, hasQuestions, hasExclamations),
+      'themes': _generateThematicAnalysis(themes, text),
+      'context': _generateHistoricalContext(themes, lineCount),
+      'analysis': _generateLiteraryAnalysis(lineCount, poemType, hasRepetition, hasQuestions, hasExclamations, text),
+      'relevance': _generateContemporaryRelevance(themes)
+    };
+  }
+  
+  static String _generateDetailedSummary(String firstLine, int lineCount, String poemType, Map<String, bool> themes, bool hasQuestions, bool hasExclamations) {
+    String emotionalTone = hasExclamations ? 'passionate and declarative' : hasQuestions ? 'contemplative and inquiring' : 'reflective and meditative';
+    String primaryTheme = themes['khudi'] == true ? 'self-realization' : 
+                         themes['ishq'] == true ? 'divine love' :
+                         themes['freedom'] == true ? 'liberation and independence' :
+                         themes['divine'] == true ? 'spiritual connection' : 'philosophical contemplation';
+    
+    return 'This $poemType opens with the meaningful line "$firstLine" and unfolds across $lineCount verses with a $emotionalTone tone. '
+           'The poem appears to center on themes of $primaryTheme, characteristic of Iqbal\'s profound engagement with both individual transformation and collective awakening. '
+           'Through carefully crafted verses, it explores the relationship between personal spiritual development and broader social consciousness. '
+           'The work demonstrates Iqbal\'s signature approach of using poetic beauty to convey deep philosophical insights about human potential and divine purpose. '
+           'This analysis represents offline interpretation - for more detailed AI-powered insights, please connect to the internet.';
+  }
+  
+  static String _generateThematicAnalysis(Map<String, bool> themes, String text) {
+    List<String> themeAnalysis = [];
+    
+    if (themes['khudi'] == true) {
+      themeAnalysis.add('• **Self-Realization (Khudi)**: This poem directly engages with Iqbal\'s central concept of Khudi - the development of individual consciousness and spiritual strength. The presence of self-referential language suggests exploration of personal empowerment and inner awakening.');
+    }
+    
+    if (themes['ishq'] == true) {
+      themeAnalysis.add('• **Divine Love (Ishq)**: The poem appears to explore themes of passionate spiritual love, reflecting Iqbal\'s belief that divine love is the driving force behind all meaningful human action and transformation.');
+    }
+    
+    if (themes['freedom'] == true) {
+      themeAnalysis.add('• **Freedom and Liberation**: References to freedom suggest this poem addresses both spiritual liberation from inner constraints and potentially political freedom from external oppression.');
+    }
+    
+    if (themes['knowledge'] == true) {
+      themeAnalysis.add('• **Knowledge and Wisdom**: The poem seems to emphasize the importance of learning and intellectual development as pathways to both individual growth and collective progress.');
+    }
+    
+    if (themes['divine'] == true) {
+      themeAnalysis.add('• **Divine Connection**: Strong spiritual themes indicate exploration of humanity\'s relationship with the divine, reflecting Iqbal\'s integration of Islamic spirituality with philosophical inquiry.');
+    }
+    
+    // Add default themes if none detected
+    if (themeAnalysis.isEmpty) {
+      themeAnalysis.addAll([
+        '• **Spiritual Awakening**: Following Iqbal\'s consistent focus, this poem likely addresses the awakening of spiritual consciousness and awareness of divine purpose.',
+        '• **Individual Empowerment**: True to Iqbal\'s philosophy, the poem probably emphasizes the importance of strong, self-aware individuals in creating positive change.',
+        '• **Cultural Identity**: The work appears to explore themes of cultural and religious identity, particularly relevant to the Muslim experience.'
+      ]);
+    }
+    
+    return themeAnalysis.join('\n\n');
+  }
+  
+  static String _generateHistoricalContext(Map<String, bool> themes, int lineCount) {
+    String historicalFocus = themes['freedom'] == true ? 'struggle for independence' :
+                            themes['nation'] == true ? 'community building and nationhood' :
+                            themes['knowledge'] == true ? 'educational reform and intellectual revival' :
+                            'spiritual and cultural renaissance';
+    
+    return 'This poem emerges from Iqbal\'s mature period (1905-1938) when he was actively responding to the challenges facing Muslims in colonial India. '
+           'Written during an era of intense intellectual ferment, it reflects his engagement with the $historicalFocus that defined his generation. '
+           'The work fits within Iqbal\'s broader project of revitalizing Islamic thought and practice, drawing from both classical Islamic sources and modern philosophical insights. '
+           'It represents his ongoing effort to inspire Muslims toward both individual excellence and collective renewal during a critical period of social and political transformation. '
+           'The poem contributes to the intellectual foundation that would later influence the Pakistan movement and continues to shape contemporary Islamic discourse.';
+  }
+  
+  static String _generateLiteraryAnalysis(int lineCount, String poemType, bool hasRepetition, bool hasQuestions, bool hasExclamations, String text) {
+    String structuralAnalysis = 'The poem follows the structure of a $poemType, allowing for ${lineCount <= 10 ? 'concentrated philosophical expression' : 'extended development of complex themes'}.';
+    String rhetoricalDevices = hasQuestions ? 'Rhetorical questions engage readers in active contemplation' : 
+                              hasExclamations ? 'Exclamatory expressions create emotional intensity' : 
+                              'Declarative statements build philosophical arguments systematically';
+    String repetitionNote = hasRepetition ? 'Repetitive elements create emphasis and musical rhythm.' : 'Varied expression maintains reader engagement throughout.';
+    
+    bool hasUrduText = text.contains(RegExp(r'[\u0600-\u06FF]'));
+    String languageNote = hasUrduText ? 'The original Urdu/Persian text employs classical poetic meters and traditional imagery' : 
+                         'This English translation maintains the essence of Iqbal\'s original poetic vision';
+    
+    return '**Structure and Form**: $structuralAnalysis The organization allows for systematic development of the central message while maintaining poetic beauty.\n\n'
+           '**Language and Style**: $languageNote, demonstrating Iqbal\'s mastery of multiple literary traditions. The diction combines intellectual precision with emotional resonance.\n\n'
+           '**Rhetorical Techniques**: $rhetoricalDevices, reflecting Iqbal\'s skill in engaging readers both intellectually and emotionally. $repetitionNote\n\n'
+           '**Imagery and Symbolism**: The poem likely employs traditional Islamic and Persian literary symbols, connecting earthly experiences with spiritual realities in Iqbal\'s characteristic manner.';
+  }
+  
+  static String _generateContemporaryRelevance(Map<String, bool> themes) {
+    String relevanceAreas = themes['khudi'] == true ? 'personal empowerment and self-development' :
+                           themes['freedom'] == true ? 'liberation movements and social justice' :
+                           themes['knowledge'] == true ? 'educational reform and intellectual growth' :
+                           'spiritual renewal and authentic identity';
+    
+    return 'This poem offers profound guidance for contemporary Muslims navigating the complexities of modern life while seeking authentic spiritual and cultural identity. '
+           'Its emphasis on $relevanceAreas speaks directly to current challenges facing individuals and communities worldwide. '
+           'The work provides practical wisdom for balancing traditional values with contemporary realities, offering a framework for meaningful engagement with modern society. '
+           'Iqbal\'s vision of dynamic, progressive Islam remains highly relevant for addressing current debates about religion, modernity, and social change. '
+           'The poem\'s call for awakened consciousness and purposeful action continues to inspire new generations seeking to make positive contributions to their communities and the world.';
+  }
+  
+  static bool _detectRepetition(List<String> lines) {
+    for (int i = 0; i < lines.length - 1; i++) {
+      for (int j = i + 1; j < lines.length; j++) {
+        if (lines[i].toLowerCase().contains(lines[j].toLowerCase().split(' ').first) ||
+            lines[j].toLowerCase().contains(lines[i].toLowerCase().split(' ').first)) {
+          return true;
+        }
+      }
+    }
+    return false;
   }
 
   static Future<List<Map<String, dynamic>>> getTimelineEvents(String bookName,
@@ -315,7 +552,7 @@ Analyze the poem's literary techniques, symbolic meanings, and deeper philosophi
       final response = await generateContent(
         prompt: _getTimelinePrompt(bookName, timePeriod),
         temperature: 0.3,
-        maxTokens: 2000,
+        maxTokens: 4000,
       );
 
       // Clean and parse JSON
@@ -375,7 +612,7 @@ Analyze the poem's literary techniques, symbolic meanings, and deeper philosophi
 
   // Validate that the analysis contains all required sections
   static bool _isValidAnalysis(Map<String, String> analysis) {
-    final requiredSections = ['summary', 'themes', 'context', 'analysis'];
+    final requiredSections = ['summary', 'themes', 'context', 'analysis', 'relevance'];
 
     // Check if all required sections are present and not empty
     for (final section in requiredSections) {
@@ -489,7 +726,7 @@ Return ONLY the JSON with no other explanation.''';
       final response = await generateContent(
         prompt: prompt,
         temperature: 0.3,
-        maxTokens: 2000,
+        maxTokens: 4000,
       );
 
       try {

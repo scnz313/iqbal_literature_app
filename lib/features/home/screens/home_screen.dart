@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../controllers/home_controller.dart';
 import '../../books/screens/books_screen.dart';
 import '../../poems/screens/poems_screen.dart';
 import '../../search/screens/search_screen.dart';
 import '../../settings/screens/settings_screen.dart';
+import '../../../core/utils/responsive_utils.dart';
 
 class HomeScreen extends GetView<HomeController> {
   const HomeScreen({super.key});
@@ -40,13 +42,18 @@ class HomeScreen extends GetView<HomeController> {
 
   Widget _buildCustomHeader(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(24, 16, 24, 20),
+      padding: EdgeInsets.fromLTRB(
+        context.responsivePadding.left,
+        context.responsiveSpacing,
+        context.responsivePadding.right,
+        context.responsiveSpacing * 1.25,
+      ),
       decoration: BoxDecoration(
         color: Theme.of(context).scaffoldBackgroundColor,
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
+            blurRadius: ResponsiveUtils.getResponsiveElevation(context, baseElevation: 10),
             offset: const Offset(0, 2),
           ),
         ],
@@ -65,13 +72,13 @@ class HomeScreen extends GetView<HomeController> {
                   return Container(
                     decoration: BoxDecoration(
                       color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: ResponsiveUtils.getResponsiveBorderRadius(context, baseRadius: 12),
                     ),
                     child: IconButton(
                       icon: Icon(
                         Icons.bookmark_outline,
                         color: Theme.of(context).colorScheme.primary,
-                        size: 24,
+                        size: ResponsiveUtils.getIconSize(context, baseSize: 24),
                       ),
                       onPressed: () => Get.toNamed('/favorites'),
                       tooltip: 'Bookmarks',
@@ -80,7 +87,7 @@ class HomeScreen extends GetView<HomeController> {
                 }
                 return const SizedBox.shrink();
               }),
-              const SizedBox(width: 12),
+              SizedBox(width: context.responsiveSpacing * 0.75),
               // Greeting and title
               Expanded(
                 child: Obx(() {
@@ -94,18 +101,18 @@ class HomeScreen extends GetView<HomeController> {
                           'خوش آمدید',
                           style: TextStyle(
                             fontFamily: 'JameelNooriNastaleeq',
-                            fontSize: 16,
+                            fontSize: (16 * context.fontSizeMultiplier).sp,
                             color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
                             height: 1.5,
                           ),
                           textDirection: TextDirection.rtl,
                         ),
-                        const SizedBox(height: 4),
+                        SizedBox(height: 4.h),
                         Text(
                           'علامہ محمد اقبال کا ادبی خزانہ',
                           style: TextStyle(
                             fontFamily: 'JameelNooriNastaleeq',
-                            fontSize: 24,
+                            fontSize: (24 * context.fontSizeMultiplier).sp,
                             fontWeight: FontWeight.w600,
                             color: Theme.of(context).colorScheme.onSurface,
                             height: 1.4,
@@ -134,7 +141,7 @@ class HomeScreen extends GetView<HomeController> {
                       title,
                       style: TextStyle(
                         fontFamily: idx == 3 ? null : 'JameelNooriNastaleeq',
-                        fontSize: 20,
+                        fontSize: (20 * context.fontSizeMultiplier).sp,
                         fontWeight: FontWeight.w600,
                         color: Theme.of(context).colorScheme.onSurface,
                       ),
@@ -144,32 +151,39 @@ class HomeScreen extends GetView<HomeController> {
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: context.responsiveSpacing * 0.5),
         ],
       ),
     );
   }
 
   Widget _buildBottomNavigation(BuildContext context) {
+    final navHeight = context.responsiveListItemHeight * 0.9;
+    
     return Container(
-      margin: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+      margin: EdgeInsets.fromLTRB(
+        context.responsiveSpacing * 1.25,
+        0,
+        context.responsiveSpacing * 1.25,
+        context.responsiveSpacing * 1.25,
+      ),
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: ResponsiveUtils.getResponsiveBorderRadius(context, baseRadius: 24),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.1),
-            blurRadius: 20,
+            blurRadius: ResponsiveUtils.getResponsiveElevation(context, baseElevation: 20),
             offset: const Offset(0, 8),
           ),
         ],
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: ResponsiveUtils.getResponsiveBorderRadius(context, baseRadius: 24),
         child: Obx(() => NavigationBar(
               backgroundColor: Colors.transparent,
               elevation: 0,
-              height: 70,
+              height: navHeight,
               selectedIndex: controller.currentIndex.value,
               onDestinationSelected: controller.changePage,
               indicatorColor: Theme.of(context).colorScheme.primary.withOpacity(0.15),
@@ -177,14 +191,14 @@ class HomeScreen extends GetView<HomeController> {
                 NavigationDestination(
                   icon: Icon(
                     Icons.book_outlined,
-                    size: 24,
+                    size: ResponsiveUtils.getIconSize(context, baseSize: 24),
                     color: controller.currentIndex.value == 0
                         ? Theme.of(context).colorScheme.primary
                         : Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
                   ),
                   selectedIcon: Icon(
                     Icons.book,
-                    size: 24,
+                    size: ResponsiveUtils.getIconSize(context, baseSize: 24),
                     color: Theme.of(context).colorScheme.primary,
                   ),
                   label: 'کتابیں',
@@ -192,14 +206,14 @@ class HomeScreen extends GetView<HomeController> {
                 NavigationDestination(
                   icon: Icon(
                     Icons.auto_stories_outlined,
-                    size: 24,
+                    size: ResponsiveUtils.getIconSize(context, baseSize: 24),
                     color: controller.currentIndex.value == 1
                         ? Theme.of(context).colorScheme.primary
                         : Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
                   ),
                   selectedIcon: Icon(
                     Icons.auto_stories,
-                    size: 24,
+                    size: ResponsiveUtils.getIconSize(context, baseSize: 24),
                     color: Theme.of(context).colorScheme.primary,
                   ),
                   label: 'نظم',
@@ -207,14 +221,14 @@ class HomeScreen extends GetView<HomeController> {
                 NavigationDestination(
                   icon: Icon(
                     Icons.search_outlined,
-                    size: 24,
+                    size: ResponsiveUtils.getIconSize(context, baseSize: 24),
                     color: controller.currentIndex.value == 2
                         ? Theme.of(context).colorScheme.primary
                         : Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
                   ),
                   selectedIcon: Icon(
                     Icons.search,
-                    size: 24,
+                    size: ResponsiveUtils.getIconSize(context, baseSize: 24),
                     color: Theme.of(context).colorScheme.primary,
                   ),
                   label: 'تلاش',
@@ -222,14 +236,14 @@ class HomeScreen extends GetView<HomeController> {
                 NavigationDestination(
                   icon: Icon(
                     Icons.settings_outlined,
-                    size: 24,
+                    size: ResponsiveUtils.getIconSize(context, baseSize: 24),
                     color: controller.currentIndex.value == 3
                         ? Theme.of(context).colorScheme.primary
                         : Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
                   ),
                   selectedIcon: Icon(
                     Icons.settings,
-                    size: 24,
+                    size: ResponsiveUtils.getIconSize(context, baseSize: 24),
                     color: Theme.of(context).colorScheme.primary,
                   ),
                   label: 'ترتیبات',

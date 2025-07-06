@@ -120,7 +120,7 @@ ANALYSIS:
           ],
           "generationConfig": {
             "temperature": 0.7,
-            "maxOutputTokens": 1000,
+            "maxOutputTokens": 2000,
             "topP": 1,
             "topK": 40
           }
@@ -195,7 +195,7 @@ ANALYSIS:
               {'role': 'user', 'content': text}
             ],
             'temperature': 0.3, // Lower temperature for more focused responses
-            'max_tokens': 800, // Reduced for faster responses
+            'max_tokens': 1600, // Increased from 800 for more detailed responses
           }),
         );
 
@@ -272,7 +272,7 @@ ANALYSIS:
           {"role": "user", "content": prompt ?? "Analyze this poem:\n\n$text"}
         ],
         "temperature": 0.5,
-        "max_tokens": 1000,
+        "max_tokens": 2000,
       }),
     );
 
@@ -482,7 +482,7 @@ ANALYSIS:
             }
           ],
           "temperature": 0.7,
-          "max_tokens": 500,
+          "max_tokens": 4000,
         }),
       );
 
@@ -585,7 +585,7 @@ ANALYSIS:
             }
           ],
           'temperature': 0.7,
-          'max_tokens': 1000,
+          'max_tokens': 2000,
         }),
       );
 

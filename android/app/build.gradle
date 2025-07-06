@@ -35,7 +35,7 @@ if (flutterVersionName == null) {
     flutterVersionName = '1.1'
 }
 
-def kotlin_version = '1.9.22'
+def kotlin_version = '1.9.24'
 
 android {
     namespace "com.iqbalbook.iqbal_literature"
@@ -55,22 +55,24 @@ android {
         main.java.srcDirs += 'src/main/kotlin'
     }
 
-    // Add signing config
+    // Add signing config (optional - only if key.properties exists)
     signingConfigs {
         release {
-            keyAlias keystoreProperties['keyAlias']
-            keyPassword keystoreProperties['keyPassword']
-            storeFile keystoreProperties['storeFile'] ? file(keystoreProperties['storeFile']) : null
-            storePassword keystoreProperties['storePassword']
+            if (keystorePropertiesFile.exists()) {
+                keyAlias keystoreProperties['keyAlias']
+                keyPassword keystoreProperties['keyPassword']
+                storeFile keystoreProperties['storeFile'] ? file(keystoreProperties['storeFile']) : null
+                storePassword keystoreProperties['storePassword']
+            }
         }
     }
 
     defaultConfig {
         applicationId "com.iqbalbook.iqbal_literature"
-        minSdkVersion flutter.minSdkVersion
+        minSdkVersion 23
         targetSdkVersion flutter.targetSdkVersion
-        versionCode 20
-        versionName "2.0.0"
+        versionCode 22
+        versionName "1.1.0"
         multiDexEnabled true
         manifestPlaceholders = [
             excludeAdIdPermission: "true",
@@ -83,7 +85,7 @@ android {
             // Use default debug signing config
         }
         release {
-            signingConfig signingConfigs.release
+            signingConfig keystorePropertiesFile.exists() ? signingConfigs.release : null
             minifyEnabled true
             shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
@@ -120,7 +122,7 @@ android {
             enable true
             reset()
             include 'x86', 'x86_64', 'armeabi-v7a', 'arm64-v8a'
-            universalApk false
+            universalApk true
         }
     }
 

@@ -93,8 +93,10 @@ Future<void> main() async {
     try {
       await dotenv.load(fileName: ".env");
       debugPrint('✅ Environment variables loaded');
+      debugPrint('🔑 Gemini API Key present: ${dotenv.env['GEMINI_API_KEY']?.isNotEmpty ?? false}');
     } catch (e) {
       debugPrint('⚠️ Failed to load .env file: $e');
+      debugPrint('⚠️ Make sure .env file exists and is included in pubspec.yaml assets');
     }
 
     // Preload fonts for PDF export in the background
@@ -157,9 +159,24 @@ Future<void> main() async {
     final fontScaleProvider = FontScaleProvider(storageService);
     Get.put<FontScaleProvider>(fontScaleProvider, permanent: true);
 
-    // Initialize API services
-    final deepseekClient = DeepSeekApiClient();
-    Get.put<DeepSeekApiClient>(deepseekClient, permanent: true);
+    // Initialize API services (DeepSeek is optional)
+    DeepSeekApiClient? deepseekClient;
+    try {
+      // Only initialize if API keys are provided
+      final apiKey = const String.fromEnvironment('DEEPSEEK_API_KEY');
+      final backupKey = const String.fromEnvironment('DEEPSEEK_BACKUP_API_KEY');
+      
+      if (apiKey.isNotEmpty && backupKey.isNotEmpty) {
+        deepseekClient = DeepSeekApiClient();
+        Get.put<DeepSeekApiClient>(deepseekClient, permanent: true);
+        debugPrint('✅ DeepSeek API client initialized');
+      } else {
+        debugPrint('ℹ️ DeepSeek API keys not provided - skipping initialization');
+      }
+    } catch (e) {
+      debugPrint('⚠️ DeepSeek API client initialization failed: $e');
+      // Continue without DeepSeek - it's optional
+    }
 
     final textAnalysisService =
         TextAnalysisService(deepseekClient, analysisCacheService);
@@ -215,9 +232,20 @@ Future<void> main() async {
 
     runApp(const MyApp());
   } catch (e, stackTrace) {
-    debugPrint('Error during initialization: $e');
-    debugPrint('Stack trace: $stackTrace');
-    runApp(FallbackApp(error: e.toString()));
+    debugPrint('❌ Error during initialization: $e');
+    debugPrint('📍 Stack trace: $stackTrace');
+    
+    // Try to provide more specific error information
+    String errorMessage = e.toString();
+    if (e.toString().contains('NotInitializedError')) {
+      errorMessage = 'Dependency initialization failed. Please restart the app.';
+    } else if (e.toString().contains('FirebaseException')) {
+      errorMessage = 'Firebase initialization failed. Check your configuration.';
+    } else if (e.toString().contains('PlatformException')) {
+      errorMessage = 'Platform-specific error occurred during initialization.';
+    }
+    
+    runApp(FallbackApp(error: errorMessage));
   }
 }
 

@@ -19,16 +19,19 @@ A comprehensive Flutter application dedicated to the literary works of Dr. Allam
 
 ### 📱 User Experience
 - **Modern UI/UX**: Clean, intuitive interface with Material Design
+- **Round App Icons**: Modern adaptive icons for all platforms
 - **Dark/Light Theme**: Comfortable reading in any lighting
-- **Responsive Design**: Optimized for all screen sizes
+- **Responsive Design**: Optimized for all screen sizes and tablets
 - **Offline Support**: Read content without internet connection
-- **Share**: Share beautiful verses with friends and family
+- **Enhanced Sharing**: Share beautiful verses with improved PDF export
+- **Performance Optimized**: Production-ready with debug modes disabled
 
 ### 🔧 Technical Features
 - **Firebase Integration**: Real-time data sync and analytics
 - **Local Database**: SQLite for offline storage
-- **Performance Optimized**: Smooth scrolling and fast search
+- **Production Ready**: Optimized builds with proper signing configuration
 - **Cross-Platform**: Available on Android and iOS
+- **Universal APK**: Support for all device architectures
 
 ## 🚀 Getting Started
 
@@ -56,7 +59,12 @@ A comprehensive Flutter application dedicated to the literary works of Dr. Allam
    - Add your `google-services.json` (Android) and `GoogleService-Info.plist` (iOS)
    - Configure Firebase services (Firestore, Analytics, etc.)
 
-4. **Run the app**
+4. **Configure App Icons**
+   ```bash
+   flutter pub run flutter_launcher_icons:main
+   ```
+
+5. **Run the app**
    ```bash
    flutter run
    ```
@@ -67,6 +75,8 @@ A comprehensive Flutter application dedicated to the literary works of Dr. Allam
 lib/
 ├── config/           # App configuration and routing
 ├── core/            # Core utilities, themes, and constants
+│   ├── utils/       # Debug utilities and responsive helpers
+│   └── themes/      # App themes and text styles
 ├── data/            # Data layer (repositories, services)
 ├── di/              # Dependency injection
 ├── features/        # Feature modules
@@ -75,9 +85,13 @@ lib/
 │   ├── search/      # Search functionality
 │   ├── favorites/   # User favorites
 │   ├── settings/    # App settings
+│   ├── historical_context/ # Historical context and analysis
 │   └── ...
 ├── models/          # Data models
-├── services/        # External services (API, cache, etc.)
+├── services/        # External services (API, cache, share)
+│   ├── analysis/    # AI-powered text analysis
+│   ├── api/         # External API clients
+│   └── share/       # Sharing and PDF services
 ├── utils/           # Utility functions
 └── widgets/         # Reusable UI components
 ```
@@ -108,6 +122,7 @@ lib/
 - **Nastaliq Fonts** - Authentic Urdu typography
 - **Flutter ScreenUtil** - Responsive design
 - **Shimmer** - Loading animations
+- **Flutter Launcher Icons** - Adaptive app icons
 
 ## 📱 Screenshots
 
@@ -133,13 +148,27 @@ DEEPSEEK_API_KEY=your_deepseek_api_key
    - Firebase Crashlytics
    - Firebase Performance
 
+### App Signing (Android)
+For production releases, configure signing in `android/key.properties`:
+```properties
+storePassword=your_keystore_password
+keyPassword=your_key_password
+keyAlias=upload
+storeFile=upload-keystore.jks
+```
+
 ## 🚀 Building for Production
 
 ### Android
 ```bash
-flutter build apk --release
-# or for app bundle
+# App Bundle (recommended for Play Store)
 flutter build appbundle --release
+
+# Universal APK
+flutter build apk --release
+
+# Architecture-specific APKs
+flutter build apk --release --split-per-abi
 ```
 
 ### iOS
@@ -165,7 +194,27 @@ We welcome contributions! Please follow these steps:
 
 ## 📝 Version History
 
-### v1.0.2 (Current)
+### v1.1.0 (Current)
+- ✨ **New Features:**
+  - Round adaptive app icons for modern design
+  - Enhanced tablet support with responsive layouts
+  - Improved PDF export functionality
+  - Better image sharing capabilities
+  - Production-ready debug utilities
+
+- 🔧 **Technical Improvements:**
+  - Disabled debug modes for production
+  - Optimized build configuration
+  - Fixed app signing for Play Store
+  - Universal APK support
+  - Performance optimizations
+
+- 🐛 **Bug Fixes:**
+  - Fixed signing configuration issues
+  - Resolved build compatibility problems
+  - Improved error handling
+
+### v1.0.2
 - Enhanced AI-powered literary analysis
 - Improved search functionality
 - Better performance optimizations
@@ -189,6 +238,13 @@ The app supports multiple languages:
 - **English** - Secondary
 - **Persian** (فارسی) - For Persian poetry
 
+## 📦 Build Artifacts
+
+The app generates the following build artifacts:
+- **App Bundle**: `build/app/outputs/bundle/release/app-release.aab` (~70MB)
+- **Universal APK**: `build/app/outputs/apk/release/app-release.apk` (~79MB)
+- **Architecture-specific APKs**: 24-44MB each (ARM64, ARMv7, x86_64, x86)
+
 ## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
@@ -198,25 +254,18 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **Dr. Allama Iqbal** - For his timeless literary contributions
 - **Iqbal Academy Pakistan** - For preserving and promoting Iqbal's works
 - **Flutter Community** - For the amazing framework and packages
-- **Firebase** - For reliable backend services
+- **Google Fonts** - For beautiful typography support
+- **Firebase** - For robust backend services
 
-## 📞 Contact & Support
+## 📞 Support
 
-- **Developer**: Hashim Hameem
-- **Email**: [your-email@example.com]
-- **GitHub**: [@hashimhameem](https://github.com/hashimhameem)
-
-For support, email us or create an issue on GitHub.
+For support, issues, or feature requests:
+- Create an issue on GitHub
+- Check the documentation files:
+  - [Final Analysis Report](FINAL_ANALYSIS_REPORT.md)
+  - [App Signing Guide](APP_SIGNING_GUIDE.md)
+  - [Build Status Summary](BUILD_STATUS_SUMMARY.md)
 
 ---
 
-<div align="center">
-
-**"خودی کو کر بلند اتنا کہ ہر تقدیر سے پہلے"**  
-*"Elevate yourself so much that before every destiny"*  
-**خدا بندے سے خود پوچھے بتا تیری رضا کیا ہے**  
-*"God Himself asks His servant: Tell me, what is your wish?"*
-
-*- Dr. Allama Iqbal*
-
-</div>
+**Made with ❤️ for the lovers of Iqbal's poetry**

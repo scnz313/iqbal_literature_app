@@ -264,19 +264,6 @@ class PoemDetailView extends GetView<PoemController> {
 
           const SizedBox(height: 32),
 
-          // Analysis Results Section
-          Obx(() {
-            if (controller.showAnalysis.value) {
-              return _buildAnalysisSection(context, {
-                'summary': controller.poemAnalysis.value,
-                'themes': '',
-                'context': '',
-                'analysis': ''
-              });
-            }
-            return const SizedBox.shrink();
-          }),
-
           // Stanzas with line numbers
           for (final stanza in stanzas)
             Builder(builder: (context) {
@@ -292,50 +279,6 @@ class PoemDetailView extends GetView<PoemController> {
             }),
         ],
       ),
-    );
-  }
-
-  Widget _buildAnalysisSection(
-      BuildContext context, Map<String, String> analysis) {
-    return Container(
-      margin: const EdgeInsets.symmetric(vertical: 16),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: Theme.of(context).dividerColor,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildAnalysisHeader('Summary', analysis['summary'] ?? ''),
-          const Divider(height: 32),
-          _buildAnalysisHeader('Themes', analysis['themes'] ?? ''),
-          const Divider(height: 32),
-          _buildAnalysisHeader('Historical Context', analysis['context'] ?? ''),
-          const Divider(height: 32),
-          _buildAnalysisHeader('Analysis', analysis['analysis'] ?? ''),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildAnalysisHeader(String title, String content) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          title,
-          style: const TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(height: 8),
-        Text(content),
-      ],
     );
   }
 

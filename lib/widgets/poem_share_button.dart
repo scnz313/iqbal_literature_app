@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../services/share/pdf_creator.dart';
+import '../services/share/pdf_service.dart';
 
 /// A specialized button for sharing poems as PDFs with advanced options
 class PoemShareButton extends StatelessWidget {
@@ -24,36 +24,26 @@ class PoemShareButton extends StatelessWidget {
         ? ElevatedButton.icon(
             icon: Icon(icon),
             label: Text(label!),
-            onPressed: () => _openPdfOptions(context),
+            onPressed: () => _sharePdf(context),
           )
         : IconButton(
             icon: Icon(icon),
             tooltip: 'Export as PDF',
-            onPressed: () => _openPdfOptions(context),
+            onPressed: () => _sharePdf(context),
           );
   }
 
-  // Share the poem as PDF
-  Future<void> _openPdfOptions(BuildContext context) async {
+  // Share the poem as PDF using the new robust service
+  Future<void> _sharePdf(BuildContext context) async {
     try {
-      final filenameBase = 'poem_${title.hashCode}';
-
-      // Use the new streamlined PDF generator
-      await IqbalPdfGenerator.sharePoemPdf(
-        context,
-        title,
-        content,
-        filenameBase,
+      await PdfService.generateAndSharePdf(
+        title: title,
+        content: content,
+        context: context,
       );
     } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error sharing PDF: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      // Error handling is already done in the PdfService
+      debugPrint('Error in PoemShareButton: $e');
     }
   }
 }

@@ -6,9 +6,16 @@ class SplashBinding implements Bindings {
   @override
   void dependencies() {
     Get.lazyPut<SplashController>(
-      () => SplashController(
-        poemRepository: Get.find<PoemRepository>(),
-      ),
+      () {
+        try {
+          // Try to get the PoemRepository if it's available
+          final poemRepository = Get.find<PoemRepository>();
+          return SplashController(poemRepository: poemRepository);
+        } catch (e) {
+          // If PoemRepository is not available, create a fallback controller
+          return SplashController(poemRepository: null);
+        }
+      },
     );
   }
 }

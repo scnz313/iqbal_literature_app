@@ -5,7 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'dart:convert';
 
 class TextAnalysisService {
-  final DeepSeekApiClient _apiClient;
+  final DeepSeekApiClient? _apiClient;
   final AnalysisCacheService _cacheService;
 
   TextAnalysisService(this._apiClient, this._cacheService);
@@ -219,6 +219,8 @@ class TextAnalysisService {
             response['context']?.toString() ?? 'Context not available';
         analysis['analysis'] = response['analysis']?.toString() ??
             'Literary analysis not available';
+        analysis['relevance'] = response['relevance']?.toString() ??
+            'Contemporary relevance not available';
 
         // Cache the properly typed analysis
         await _cacheService.cachePoemAnalysis(poemId, analysis);
@@ -234,7 +236,8 @@ class TextAnalysisService {
           'themes': 'Analysis service is currently unavailable.',
           'context': 'Please try again later.',
           'analysis':
-              'We apologize for the inconvenience. Error details: $apiError'
+              'We apologize for the inconvenience. Error details: $apiError',
+          'relevance': 'Contemporary relevance analysis unavailable.'
         };
       }
     } catch (e) {
@@ -245,7 +248,8 @@ class TextAnalysisService {
         'summary': 'Unable to analyze poem at this time.',
         'themes': 'Analysis service is currently unavailable.',
         'context': 'Please check your internet connection and try again later.',
-        'analysis': 'We apologize for the inconvenience.'
+        'analysis': 'We apologize for the inconvenience.',
+        'relevance': 'Contemporary relevance analysis unavailable.'
       };
     }
   }
@@ -259,6 +263,7 @@ class TextAnalysisService {
           analysisData['context'] ?? 'Historical context not available';
       final analysis =
           analysisData['analysis'] ?? 'Literary analysis not available';
+      final relevance = analysisData['relevance'] ?? 'Contemporary relevance not available';
 
       // Format themes section - if it's not a bulleted list already, keep as is
       String formattedThemes = themes;
@@ -307,6 +312,9 @@ $context
 
 Literary Analysis:
 $analysis
+
+Contemporary Relevance:
+$relevance
 ''';
     } catch (e) {
       debugPrint('❌ Error formatting poem analysis: $e');
@@ -329,6 +337,10 @@ $analysis
 
         if (analysisData.containsKey('analysis')) {
           sections.add('Literary Analysis:\n${analysisData['analysis']}');
+        }
+
+        if (analysisData.containsKey('relevance')) {
+          sections.add('Contemporary Relevance:\n${analysisData['relevance']}');
         }
 
         // If we have any sections, return them; otherwise, use a generic message
@@ -396,6 +408,10 @@ Provide extensive evidence and specific examples.''';
   }
 
   Future<Map<String, dynamic>> _tryDeepSeekWordAnalysis(String word) async {
+    if (_apiClient == null) {
+      throw Exception('DeepSeek API client not available');
+    }
+    
     final prompt = '''
     Analyze this word: $word
     Return in this exact JSON format:
@@ -410,7 +426,7 @@ Provide extensive evidence and specific examples.''';
     }
     ''';
 
-    final response = await _apiClient.analyze(prompt: prompt);
+    final response = await _apiClient!.analyze(prompt: prompt);
     final content = response['choices'][0]['message']['content'];
     return jsonDecode(content);
   }

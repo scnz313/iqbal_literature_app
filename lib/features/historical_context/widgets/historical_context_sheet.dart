@@ -20,7 +20,7 @@ class HistoricalContextSheet extends StatelessWidget {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
-      barrierColor: Colors.black.withOpacity(0.05),
+      barrierColor: Colors.black.withValues(alpha: 0.05),
       isScrollControlled: true,
       useRootNavigator: true,
       builder: (context) => HistoricalContextSheet(poem: poem),
@@ -46,7 +46,7 @@ class HistoricalContextSheet extends StatelessWidget {
                 height: 4.h,
                 margin: EdgeInsets.only(top: 12.h, bottom: 8.h),
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.onSurfaceVariant.withOpacity(0.4),
+                  color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
                   borderRadius: BorderRadius.circular(2.r),
                 ),
               ),
@@ -60,16 +60,16 @@ class HistoricalContextSheet extends StatelessWidget {
                   future: controller.getHistoricalContext(poem.id),
                   builder: (context, snapshot) {
                     if (snapshot.connectionState == ConnectionState.waiting) {
-                      return _buildLoadingState();
+                      return _buildLoadingState(context);
                     }
 
                     if (snapshot.hasError) {
-                      return _buildErrorState(snapshot.error.toString());
+                      return _buildErrorState(context, snapshot.error.toString());
                     }
 
                     final data = snapshot.data;
                     if (data == null || data.isEmpty) {
-                      return _buildErrorState('No historical context available');
+                      return _buildErrorState(context, 'No historical context available');
                     }
 
                     final historicalContext = HistoricalContext.fromMap(data);
@@ -93,7 +93,7 @@ class HistoricalContextSheet extends StatelessWidget {
       decoration: BoxDecoration(
         border: Border(
           bottom: BorderSide(
-            color: theme.colorScheme.outline.withOpacity(0.1),
+            color: theme.colorScheme.outline.withValues(alpha: 0.1),
             width: 1,
           ),
         ),
@@ -145,7 +145,7 @@ class HistoricalContextSheet extends StatelessWidget {
             icon: const Icon(Icons.close),
             onPressed: () => Navigator.pop(context),
             style: IconButton.styleFrom(
-              backgroundColor: theme.colorScheme.surfaceVariant.withOpacity(0.5),
+              backgroundColor: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
               padding: EdgeInsets.all(8.w),
             ),
           ),
@@ -154,7 +154,7 @@ class HistoricalContextSheet extends StatelessWidget {
     );
   }
 
-  Widget _buildLoadingState() {
+  Widget _buildLoadingState(BuildContext context) {
     return Padding(
       padding: EdgeInsets.all(20.w),
       child: Column(
@@ -187,7 +187,7 @@ class HistoricalContextSheet extends StatelessWidget {
     );
   }
 
-  Widget _buildErrorState(String message) {
+  Widget _buildErrorState(BuildContext context, String message) {
     return Padding(
       padding: EdgeInsets.all(20.w),
       child: Column(

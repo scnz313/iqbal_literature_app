@@ -371,65 +371,66 @@ class _AnalysisBottomSheetState extends State<AnalysisBottomSheet>
   Widget _buildContent(String content) {
     debugPrint('🧩 Displaying analysis content: ${content.substring(0, min(content.length, 100))}...');
 
-    // First check if content has markdown headers
-    final bool hasMarkdownHeaders = content.contains('#');
+    final sections = _parseContentSections(content);
 
-    if (hasMarkdownHeaders) {
-      // If it contains markdown headers, use Flutter Markdown
-      return Padding(
-        padding: EdgeInsets.all(16.w),
-        child: Markdown(
-          data: content,
-          physics: const BouncingScrollPhysics(),
-          styleSheet: MarkdownStyleSheet(
-            h1: AppTextStyles.getTitleStyle(context).copyWith(
-              fontWeight: FontWeight.bold,
-              color: Theme.of(context).colorScheme.primary,
+    return ListView.builder(
+      padding: EdgeInsets.all(16.w),
+      physics: const BouncingScrollPhysics(),
+      itemCount: sections.length,
+      itemBuilder: (context, index) {
+        final section = sections[index];
+        final colors = [
+          Colors.blue,
+          Colors.orange,
+          Colors.green,
+          Colors.purple,
+          Colors.red,
+          Colors.teal
+        ];
+        final color = colors[index % colors.length];
+
+        return Container(
+          margin: EdgeInsets.only(bottom: 16.h),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.05),
+            borderRadius: BorderRadius.circular(12.r),
+            border: Border.all(
+              color: color.withOpacity(0.2),
+              width: 1.5,
             ),
-            h2: AppTextStyles.getTitleStyle(context).copyWith(
-              fontWeight: FontWeight.bold,
-              color: Theme.of(context).colorScheme.primary,
-              fontSize: 18.sp,
-            ),
-            p: AppTextStyles.getBodyStyle(context),
           ),
-        ),
-      );
-    } else {
-      // Otherwise, parse our own custom format (Section: content)
-      final sections = _parseContentSections(content);
-
-      return ListView.builder(
-        padding: EdgeInsets.all(16.w),
-        physics: const BouncingScrollPhysics(),
-        itemCount: sections.length,
-        itemBuilder: (context, index) {
-          final section = sections[index];
-          return Container(
-            margin: EdgeInsets.only(bottom: 16.h),
-            decoration: AppDecorations.cardDecoration(context),
-            child: ExpansionTile(
-              tilePadding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 4.h),
-              childrenPadding: EdgeInsets.all(16.w),
-              leading: Container(
-                padding: EdgeInsets.all(8.w),
-                decoration: AppDecorations.iconContainerDecoration(
-                  context,
-                  Theme.of(context).colorScheme.primary,
-                ),
-                child: Icon(
-                  _getSectionIcon(section.title),
-                  color: Theme.of(context).colorScheme.primary,
-                  size: 20.w,
-                ),
-              ),
-              title: Text(
-                _formatSectionTitle(section.title),
-                style: AppTextStyles.getTitleStyle(context).copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
+          child: Padding(
+            padding: EdgeInsets.all(16.w),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: EdgeInsets.all(8.w),
+                      decoration: BoxDecoration(
+                        color: color.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8.r),
+                      ),
+                      child: Icon(
+                        _getSectionIcon(section.title),
+                        color: color,
+                        size: 20.w,
+                      ),
+                    ),
+                    SizedBox(width: 12.w),
+                    Expanded(
+                      child: Text(
+                        _formatSectionTitle(section.title),
+                        style: AppTextStyles.getTitleStyle(context).copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: color.withOpacity(0.8),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: 12.h),
                 Text(
                   section.content,
                   style: AppTextStyles.getBodyStyle(context).copyWith(
@@ -438,10 +439,10 @@ class _AnalysisBottomSheetState extends State<AnalysisBottomSheet>
                 ),
               ],
             ),
-          );
-        },
-      );
-    }
+          ),
+        );
+      },
+    );
   }
 
   // Helper method to get an appropriate icon for each section

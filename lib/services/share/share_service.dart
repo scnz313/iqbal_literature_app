@@ -15,7 +15,7 @@ import '../../utils/screenshot_util.dart';
 import 'package:path/path.dart' as path;
 import 'package:image/image.dart' as img;
 import 'package:url_launcher/url_launcher.dart';
-import 'pdf_creator.dart';
+
 
 /// Helper class to find RenderRepaintBoundary in the render tree
 class FindRenderObjectVisitor {
@@ -94,7 +94,7 @@ class ShareService {
 
   static Future<void> shareAsImage(
     BuildContext context,
-    Widget contentWidget,
+    GlobalKey previewKey,
     String filename, {
     bool showWatermark = true,
     String? backgroundImage,
@@ -124,7 +124,7 @@ class ShareService {
       final filePath = '${shareDir.path}/$uniqueFilename';
 
       // Capture widget to image using RepaintBoundary
-      final boundary = _findRepaintBoundary(contentWidget);
+      final boundary = previewKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
       if (boundary == null) {
         throw Exception('Could not find repaint boundary in widget');
       }
@@ -171,59 +171,295 @@ class ShareService {
     }
   }
 
-  // Helper method to find RepaintBoundary in widget
-  static RenderRepaintBoundary? _findRepaintBoundary(Widget widget) {
+  /// Share full content as image (for large poems)
+  static Future<void> shareFullContentAsImage({
+    required BuildContext context,
+    required String title,
+    required String content,
+    required String filename,
+    Color backgroundColor = Colors.white,
+    Color textColor = Colors.black,
+    String? backgroundImage,
+  }) async {
     try {
-      // Wait for the next frame to ensure the widget is built
-      RenderRepaintBoundary? boundary;
-
-      // If the widget is passed as a GlobalKey<State> based widget
-      if (widget is RepaintBoundary && widget.key is GlobalKey) {
-        final key = widget.key as GlobalKey;
-        if (key.currentContext != null) {
-          final renderObject = key.currentContext!.findRenderObject();
-          if (renderObject is RenderRepaintBoundary) {
-            boundary = renderObject;
-          }
-        }
-      } else if (widget.key is GlobalKey) {
-        final key = widget.key as GlobalKey;
-        if (key.currentContext != null) {
-          // Try to find the first RenderRepaintBoundary in the subtree
-          final renderObject = key.currentContext!.findRenderObject();
-          FindRenderObjectVisitor visitor = FindRenderObjectVisitor();
-          visitChildElements(key.currentContext!.findRenderObject(), visitor);
-          boundary = visitor.foundObject as RenderRepaintBoundary?;
-        }
+      // Check permissions first
+      final hasPermission = await _requestPermissions();
+      if (!hasPermission) {
+        throw Exception('Storage permission is required');
       }
 
-      return boundary;
+      debugPrint('[Image] Generating full content image for: $title');
+
+      // Generate full content image
+      final imageBytes = await _generateFullContentImage(
+        title: title,
+        content: content,
+        backgroundColor: backgroundColor,
+        textColor: textColor,
+        backgroundImage: backgroundImage,
+      );
+
+      // Create temporary file
+      final tempDir = await getTemporaryDirectory();
+      final shareDir = Directory('${tempDir.path}/iqbal_shares');
+      if (!await shareDir.exists()) {
+        await shareDir.create(recursive: true);
+      }
+
+      await _clearOldFiles(shareDir);
+
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final uniqueFilename = '${filename}_$timestamp.png';
+      final filePath = '${shareDir.path}/$uniqueFilename';
+
+      final file = File(filePath);
+      await file.writeAsBytes(imageBytes);
+
+      debugPrint('[Image] Image saved to: $filePath');
+
+      // Share the file
+      await Share.shareXFiles(
+        [XFile(filePath)],
+        text: 'Sharing poem: $title',
+        subject: 'Iqbal Literature Verse',
+      );
+
+      debugPrint('[Image] Image shared successfully');
     } catch (e) {
-      debugPrint('Error finding repaint boundary: $e');
-      return null;
+      debugPrint('[Image] Error in shareFullContentAsImage: $e');
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to share image: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      rethrow;
     }
   }
 
-  // Visitor pattern to find RenderRepaintBoundary in the render tree
-  static void visitChildElements(
-      RenderObject? renderObject, FindRenderObjectVisitor visitor) {
-    if (renderObject == null) return;
-    if (renderObject is RenderRepaintBoundary) {
-      visitor.foundObject = renderObject;
-      return;
+  /// Generate full content image using Canvas
+  static Future<Uint8List> _generateFullContentImage({
+    required String title,
+    required String content,
+    required Color backgroundColor,
+    required Color textColor,
+    String? backgroundImage,
+  }) async {
+    // Image dimensions (optimized for mobile sharing)
+    const double imageWidth = 800;
+    const double margin = 40;
+    const double contentWidth = imageWidth - (margin * 2);
+    
+    // Calculate required height based on content
+    final estimatedHeight = await _calculateRequiredHeight(
+      title: title,
+      content: content,
+      contentWidth: contentWidth,
+      margin: margin,
+    );
+
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder);
+
+    // Fill background
+    canvas.drawRect(
+      Rect.fromLTWH(0, 0, imageWidth, estimatedHeight),
+      Paint()..color = backgroundColor,
+    );
+
+    // Draw background image if provided
+    if (backgroundImage != null) {
+      await _drawBackgroundImage(canvas, backgroundImage, imageWidth, estimatedHeight);
     }
 
-    // Continue searching
-    renderObject.visitChildren((child) {
-      visitChildElements(child, visitor);
-    });
+    double yOffset = margin;
+
+    // Draw title
+    if (title.isNotEmpty) {
+      yOffset = await _drawImageTitle(canvas, title, yOffset, contentWidth, textColor);
+      yOffset += 20;
+    }
+
+    // Draw content
+    await _drawImageContent(canvas, content, yOffset, contentWidth, textColor);
+
+    // Draw footer
+    await _drawImageFooter(canvas, imageWidth, estimatedHeight, textColor);
+
+    // Convert to image
+    final picture = recorder.endRecording();
+    final image = await picture.toImage(imageWidth.toInt(), estimatedHeight.toInt());
+    final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+
+    // Cleanup
+    picture.dispose();
+    image.dispose();
+
+    if (byteData == null) {
+      throw Exception('Failed to convert content to image');
+    }
+
+    return byteData.buffer.asUint8List();
+  }
+
+  static Future<double> _calculateRequiredHeight({
+    required String title,
+    required String content,
+    required double contentWidth,
+    required double margin,
+  }) async {
+    double height = margin * 2; // Top and bottom margins
+
+    // Calculate title height
+    if (title.isNotEmpty) {
+      final titlePainter = TextPainter(
+        text: TextSpan(
+          text: title,
+          style: const TextStyle(
+            fontSize: 28,
+            fontWeight: FontWeight.bold,
+            fontFamily: 'JameelNooriNastaleeq',
+          ),
+        ),
+        textDirection: TextDirection.rtl,
+      );
+      titlePainter.layout(maxWidth: contentWidth);
+      height += titlePainter.height + 40; // Title + spacing
+    }
+
+    // Calculate content height
+    final contentPainter = TextPainter(
+      text: TextSpan(
+        text: content,
+        style: const TextStyle(
+          fontSize: 20,
+          height: 2.2,
+          fontFamily: 'JameelNooriNastaleeq',
+        ),
+      ),
+      textDirection: TextDirection.rtl,
+    );
+    contentPainter.layout(maxWidth: contentWidth);
+    height += contentPainter.height + 60; // Content + footer space
+
+    return height;
+  }
+
+  static Future<double> _drawImageTitle(
+    Canvas canvas,
+    String title,
+    double yOffset,
+    double contentWidth,
+    Color textColor,
+  ) async {
+    final titlePainter = TextPainter(
+      text: TextSpan(
+        text: title,
+        style: TextStyle(
+          fontSize: 28,
+          fontWeight: FontWeight.bold,
+          color: textColor,
+          fontFamily: 'JameelNooriNastaleeq',
+        ),
+      ),
+      textDirection: TextDirection.rtl,
+      textAlign: TextAlign.center,
+    );
+
+    titlePainter.layout(maxWidth: contentWidth);
+    
+    // Center the title
+    final titleX = 40 + (contentWidth - titlePainter.width) / 2;
+    titlePainter.paint(canvas, Offset(titleX, yOffset));
+    
+    yOffset += titlePainter.height + 15;
+
+    // Draw decorative line
+    canvas.drawLine(
+      Offset(60, yOffset),
+      Offset(740, yOffset),
+      Paint()
+        ..color = textColor.withOpacity(0.6)
+        ..strokeWidth = 2,
+    );
+
+    return yOffset + 20;
+  }
+
+  static Future<void> _drawImageContent(
+    Canvas canvas,
+    String content,
+    double yOffset,
+    double contentWidth,
+    Color textColor,
+  ) async {
+    final contentPainter = TextPainter(
+      text: TextSpan(
+        text: content,
+        style: TextStyle(
+          fontSize: 20,
+          height: 2.2,
+          color: textColor,
+          fontFamily: 'JameelNooriNastaleeq',
+        ),
+      ),
+      textDirection: TextDirection.rtl,
+      textAlign: TextAlign.right,
+    );
+
+    contentPainter.layout(maxWidth: contentWidth);
+    
+    // Right-align for Urdu text
+    final contentX = 800 - 40 - contentPainter.width;
+    contentPainter.paint(canvas, Offset(contentX, yOffset));
+  }
+
+  static Future<void> _drawImageFooter(
+    Canvas canvas,
+    double imageWidth,
+    double imageHeight,
+    Color textColor,
+  ) async {
+    final footerY = imageHeight - 25;
+
+    final footerPainter = TextPainter(
+      text: TextSpan(
+        text: 'Iqbal Literature App',
+        style: TextStyle(
+          fontSize: 14,
+          color: textColor.withOpacity(0.7),
+          fontStyle: FontStyle.italic,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    );
+    
+    footerPainter.layout();
+    final footerX = (imageWidth - footerPainter.width) / 2;
+    footerPainter.paint(canvas, Offset(footerX, footerY));
+  }
+
+  static Future<void> _drawBackgroundImage(
+    Canvas canvas,
+    String backgroundImage,
+    double width,
+    double height,
+  ) async {
+    // This would require loading the background image asset
+    // For now, we'll just add a subtle pattern
+    final paint = Paint()
+      ..color = Colors.grey.withOpacity(0.1)
+      ..style = PaintingStyle.fill;
+    
+    canvas.drawRect(Rect.fromLTWH(0, 0, width, height), paint);
   }
 
   static Future<Uint8List?> _captureWidgetWithFallback(
-      RenderRepaintBoundary boundary) async {
+      RenderRepaintBoundary boundary,
+      {List<double> pixelRatios = const [2.0, 1.5, 1.0]}) async {
     // Try with high resolution first, then fall back to lower resolutions
-    final pixelRatios = [3.0, 2.0, 1.5, 1.0];
-
     for (final ratio in pixelRatios) {
       try {
         final ui.Image image = await boundary.toImage(pixelRatio: ratio);

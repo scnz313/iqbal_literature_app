@@ -8,7 +8,7 @@ import '../../../data/repositories/poem_repository.dart';
 import '../../../features/poems/models/poem.dart';
 
 class SplashController extends GetxController {
-  final PoemRepository _poemRepository;
+  final PoemRepository? _poemRepository;
 
   // Observable variables
   final RxString quoteText = ''.obs;
@@ -59,7 +59,7 @@ class SplashController extends GetxController {
   // Urdu character range
   static final RegExp _urduRegex = RegExp(r'[\u0600-\u06FF]');
 
-  SplashController({required PoemRepository poemRepository})
+  SplashController({required PoemRepository? poemRepository})
       : _poemRepository = poemRepository;
 
   @override
@@ -186,24 +186,17 @@ class SplashController extends GetxController {
 
   Future<void> _loadRandomQuote() async {
     try {
+      // Check if repository is available
+      if (_poemRepository == null) {
+        _useFallbackQuote();
+        return;
+      }
+
       // Get all poems
       final poems = await _getAllPoems();
 
       if (poems.isEmpty) {
-        // Fallback if no poems are found
-        final fallbackQuote =
-            "Khudi ko kar buland itna, ke har taqdeer se pehle; Khuda bande se khud pooche, bata teri raza kya hai.";
-        quoteText.value = fallbackQuote;
-        isUrduQuote.value = _isUrduText(fallbackQuote);
-
-        // Add translation for fallback Urdu quote
-        if (isUrduQuote.value) {
-          quoteTranslation.value =
-              "Elevate yourself so high that God, before issuing every decree of destiny, asks you: Tell me, what is your wish?";
-        }
-
-        isQuoteLoaded.value = true;
-        _calculateDuration(fallbackQuote);
+        _useFallbackQuote();
         return;
       }
 
@@ -237,15 +230,25 @@ class SplashController extends GetxController {
       _calculateDuration(extractedQuote);
     } catch (e) {
       debugPrint("Error loading random quote: $e");
-      // Fallback quote in case of error
-      final fallbackQuote =
-          "The ultimate aim of the ego is not to see something, but to be something.";
-      quoteText.value = fallbackQuote;
-      isUrduQuote.value = false;
-      quoteTranslation.value = '';
-      isQuoteLoaded.value = true;
-      _calculateDuration(fallbackQuote);
+      _useFallbackQuote();
     }
+  }
+
+  void _useFallbackQuote() {
+    // Fallback quote when repository is not available or poems can't be loaded
+    final fallbackQuote =
+        "Khudi ko kar buland itna, ke har taqdeer se pehle; Khuda bande se khud pooche, bata teri raza kya hai.";
+    quoteText.value = fallbackQuote;
+    isUrduQuote.value = _isUrduText(fallbackQuote);
+
+    // Add translation for fallback Urdu quote
+    if (isUrduQuote.value) {
+      quoteTranslation.value =
+          "Elevate yourself so high that God, before issuing every decree of destiny, asks you: Tell me, what is your wish?";
+    }
+
+    isQuoteLoaded.value = true;
+    _calculateDuration(fallbackQuote);
   }
 
   void _calculateDuration(String quote) {
@@ -274,7 +277,7 @@ class SplashController extends GetxController {
 
       // Try to get poems from books 1-5
       for (int i = 1; i <= 5; i++) {
-        final bookPoems = await _poemRepository.getPoemsByBookId(i);
+        final bookPoems = await _poemRepository?.getPoemsByBookId(i) ?? [];
         allPoems.addAll(bookPoems);
       }
 

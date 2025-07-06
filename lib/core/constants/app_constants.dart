@@ -1,7 +1,7 @@
 class AppConstants {
   // App Information
   static const String appName = 'Iqbal Literature';
-  static const String appVersion = '2.0.0';
+  static const String appVersion = '1.1.0';
 
   // Database
   static const String databaseName = 'iqbal_literature.db';
@@ -21,7 +21,7 @@ class AppConstants {
 
   // Feature Flags
   static const bool enableDevicePreview = false;
-  static const bool enableDebugMode = true;
-  static const bool enableLogging = true;
+  static const bool enableDebugMode = false;
+  static const bool enableLogging = false;
   static const bool enableAnalytics = true;
 }

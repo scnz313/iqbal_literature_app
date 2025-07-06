@@ -67,7 +67,7 @@ class DailyVerseScreen extends GetView<DailyVerseController> {
                               ],
                         ),
                         image: const DecorationImage(
-                          image: AssetImage('assets/images/backgrounds/pattern_light.png'),
+                          image: AssetImage('assets/images/backgrounds/paper_texture_1.png'),
                           fit: BoxFit.cover,
                           opacity: 0.1,
                         ),
