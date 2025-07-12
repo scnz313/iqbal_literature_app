@@ -3,8 +3,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import '../controllers/book_controller.dart';
 import '../widgets/book_tile.dart';
-import '../../../data/models/book/book.dart';
-import '../../../core/themes/app_decorations.dart';
+
 import '../../../core/themes/text_styles.dart';
 
 class BooksScreen extends GetView<BookController> {

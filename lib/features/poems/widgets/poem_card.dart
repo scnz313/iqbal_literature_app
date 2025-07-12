@@ -1,16 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:url_launcher/url_launcher.dart';
-// Update import path
 import '../../historical_context/widgets/historical_context_sheet.dart';
 import '../../../features/poems/models/poem.dart';
 import '../controllers/poem_controller.dart';
-import '../../../core/themes/app_decorations.dart';
-import '../../../core/themes/text_styles.dart';
 
-class PoemCard extends StatefulWidget {
+class PoemCard extends StatelessWidget {
   final String title;
   final Poem poem;
   final bool isCompact;
@@ -23,344 +19,162 @@ class PoemCard extends StatefulWidget {
   });
 
   @override
-  State<PoemCard> createState() => _PoemCardState();
-}
-
-class _PoemCardState extends State<PoemCard>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _animationController;
-  late Animation<double> _scaleAnimation;
-  late Animation<double> _fadeAnimation;
-  bool _isPressed = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _animationController = AnimationController(
-      duration: AppDecorations.fastAnimation,
-      vsync: this,
-    );
-    _scaleAnimation = Tween<double>(
-      begin: 1.0,
-      end: 0.95,
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: Curves.easeInOut,
-    ));
-    _fadeAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: Curves.easeInOut,
-    ));
-    _animationController.forward();
-  }
-
-  @override
-  void dispose() {
-    _animationController.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isUrdu = widget.title.contains(RegExp(r'[\u0600-\u06FF]'));
+    final isUrdu = title.contains(RegExp(r'[\u0600-\u06FF]'));
 
-    return FadeTransition(
-      opacity: _fadeAnimation,
-      child: ScaleTransition(
-        scale: _scaleAnimation,
-        child: GestureDetector(
-          onTapDown: (_) => _onTapDown(),
-          onTapUp: (_) => _onTapUp(),
-          onTapCancel: () => _onTapUp(),
-          onLongPressStart: (_) => _onTapDown(),
-          onLongPressEnd: (_) => _onTapUp(),
-          onLongPress: () {
-            HapticFeedback.mediumImpact();
-            _showOptions(context);
-          },
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final isWideScreen = constraints.maxWidth > 600;
-              
-              return AnimatedContainer(
-                duration: AppDecorations.fastAnimation,
-                curve: Curves.easeInOutCubic,
-                transform: Matrix4.identity()..scale(_isPressed ? 0.98 : 1.0),
-                margin: widget.isCompact 
-                    ? AppDecorations.compactCardMargin.copyWith(top:3.h,bottom:3.h) 
-                    : (isWideScreen 
-                        ? AppDecorations.largeCardMargin.copyWith(top:6.h,bottom:6.h) 
-                        : AppDecorations.defaultCardMargin.copyWith(top:6.h,bottom:6.h)),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(20.r),
-                  gradient: _isPressed ? null : LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      Theme.of(context).colorScheme.surface,
-                      Theme.of(context).colorScheme.surface.withOpacity(0.9),
-                    ],
-                  ),
-                  color: _isPressed ? Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.5) : null,
-                  border: Border.all(
-                    color: _isPressed 
-                        ? Theme.of(context).colorScheme.primary.withOpacity(0.3)
-                        : Theme.of(context).colorScheme.outline.withOpacity(0.1),
-                    width: _isPressed ? 2 : 1,
-                  ),
-                  boxShadow: _isPressed ? [] : [
-                    BoxShadow(
-                      color: Theme.of(context).colorScheme.primary.withOpacity(0.08),
-                      blurRadius: 20,
-                      offset: const Offset(0, 8),
-                      spreadRadius: 0,
-                    ),
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.04),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(20.r),
-                  child: Stack(
-                    children: [
-                      // Subtle pattern overlay
-                      Positioned.fill(
-                        child: Container(
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topRight,
-                              end: Alignment.bottomLeft,
-                              colors: [
-                                Theme.of(context).colorScheme.primary.withOpacity(0.02),
-                                Colors.transparent,
-                                Theme.of(context).colorScheme.secondary.withOpacity(0.01),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                      
-                      // Main content
-                      Material(
-                        color: Colors.transparent,
-                        child: InkWell(
-                          borderRadius: BorderRadius.circular(20.r),
-                          onTap: () => _navigateToPoem(context),
-                          child: Padding(
-                            padding: EdgeInsets.all(widget.isCompact 
-                                ? 16.w 
-                                : (isWideScreen ? 24.w : 20.w)),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                _buildEnhancedHeader(context, isWideScreen),
-                                SizedBox(height: widget.isCompact ? 12.h : 16.h),
-                                _buildEnhancedBookInfo(context, isWideScreen),
-                                if (!widget.isCompact) ...[
-                                  SizedBox(height: 16.h),
-                                  _buildEnhancedActionChips(context),
-                                ],
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            }
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildEnhancedHeader(BuildContext context, bool isWideScreen) {
-    final isUrdu = widget.title.contains(RegExp(r'[\u0600-\u06FF]'));
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _buildTypeIcon(context),
-        SizedBox(width: 12.w),
-        Expanded(
-          child: _buildStyledTitle(context, widget.title, isUrdu, isLarge: !widget.isCompact && isWideScreen, maxLines: widget.isCompact ? 1 : 2),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildTypeIcon(BuildContext context) {
-    final theme = Theme.of(context);
-    if (!_isPressed) return const SizedBox.shrink();
-    return Container(
-      padding: EdgeInsets.all(8.w),
-      decoration: AppDecorations.iconContainerDecoration(
-        context, 
-        theme.colorScheme.primary,
-      ),
-      child: Icon(
-        Icons.auto_stories_outlined,
-        size: widget.isCompact ? 16.w : 20.w,
-        color: Colors.white,
-      ),
-    );
-  }
-
-  Widget _buildEnhancedBookInfo(BuildContext context, bool isWideScreen) {
-    return FutureBuilder<String>(
-      future: Get.find<PoemController>().getBookName(widget.poem.bookId),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) {
-          return _buildShimmerBookInfo(context);
-        }
-        
-        return Row(
-          children: [
-            Icon(
-              Icons.book_outlined,
-              size: 14.w,
-              color: Theme.of(context).colorScheme.secondary,
-            ),
-            SizedBox(width: 6.w),
-            Expanded(
-              child: Text(
-                snapshot.data!,
-                style: AppTextStyles.getBodyStyle(context).copyWith(
-                  color: Theme.of(context).colorScheme.secondary,
-                  fontSize: widget.isCompact 
-                      ? 12.sp 
-                      : (isWideScreen ? 16.sp : 14.sp),
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ],
-        );
+    return GestureDetector(
+      onTap: () => _navigateToPoem(context),
+      onLongPress: () {
+        HapticFeedback.mediumImpact();
+        _showOptions(context);
       },
-    );
-  }
-
-  Widget _buildShimmerBookInfo(BuildContext context) {
-    return Row(
-      children: [
-        Container(
-          width: 14.w,
-          height: 14.w,
-          decoration: AppDecorations.shimmerDecoration(context),
-        ),
-        SizedBox(width: 6.w),
-        Expanded(
-          child: Container(
-            height: 12.h,
-            decoration: AppDecorations.shimmerDecoration(context),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildEnhancedActionChips(BuildContext context) {
-    final theme = Theme.of(context);
-    
-    return Row(
-      children: [
-        _buildActionChip(
-          context,
-          icon: Icons.history_edu_rounded,
-          label: 'Context',
-          onTap: () => _showHistoricalContext(context),
-        ),
-        SizedBox(width: 8.w),
-        _buildActionChip(
-          context,
-          icon: Icons.share_rounded,
-          label: 'Share',
-          onTap: () => _sharePoem(context),
-        ),
-        const Spacer(),
-        Text(
-          '${widget.poem.data.split('\n').where((line) => line.trim().isNotEmpty).length} lines',
-          style: AppTextStyles.textTheme.labelSmall?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildActionChip(
-    BuildContext context, {
-    required IconData icon,
-    required String label,
-    required VoidCallback onTap,
-  }) {
-    final theme = Theme.of(context);
-    
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(16.r),
       child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
+        margin: EdgeInsets.only(bottom: isCompact ? 8 : 12),
+        padding: EdgeInsets.all(isCompact ? 16 : 20),
         decoration: BoxDecoration(
-          color: theme.colorScheme.surfaceVariant,
-          borderRadius: BorderRadius.circular(16.r),
+          color: theme.colorScheme.surface,
+          borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: theme.colorScheme.outline.withOpacity(0.2),
+            color: theme.colorScheme.outline.withOpacity(0.1),
             width: 1,
           ),
         ),
         child: Row(
-          mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              icon,
-              size: 14.w,
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-            SizedBox(width: 4.w),
-            Text(
-              label,
-              style: AppTextStyles.textTheme.labelSmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
+            // Simple poem icon
+            Container(
+              width: isCompact ? 40 : 48,
+              height: isCompact ? 40 : 48,
+              decoration: BoxDecoration(
+                color: theme.colorScheme.secondary.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
               ),
+              child: Icon(
+                Icons.article_outlined,
+                color: theme.colorScheme.secondary,
+                size: isCompact ? 20 : 24,
+              ),
+            ),
+            const SizedBox(width: 16),
+            
+            // Poem info
+            Expanded(
+              child: Column(
+                crossAxisAlignment: isUrdu ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                children: [
+                  // Poem title
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: isCompact ? 14 : 16,
+                      fontWeight: FontWeight.w600,
+                      color: theme.colorScheme.onSurface,
+                      fontFamily: isUrdu ? 'JameelNooriNastaleeq' : null,
+                      height: isUrdu ? 1.8 : 1.4,
+                    ),
+                    textDirection: isUrdu ? TextDirection.rtl : TextDirection.ltr,
+                    maxLines: isCompact ? 1 : 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 8),
+                  
+                  // Book info and metadata
+                  Row(
+                    mainAxisAlignment: isUrdu ? MainAxisAlignment.end : MainAxisAlignment.start,
+                    children: [
+                      // Book indicator
+                      Icon(
+                        Icons.book_outlined,
+                        size: 14,
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                      const SizedBox(width: 4),
+                      
+                      // Book name
+                      Expanded(
+                        child: FutureBuilder<String>(
+                          future: Get.find<PoemController>().getBookName(poem.bookId),
+                          builder: (context, snapshot) {
+                            return Text(
+                              snapshot.data ?? 'Loading...',
+                              style: TextStyle(
+                                fontSize: isCompact ? 11 : 12,
+                                color: theme.colorScheme.onSurfaceVariant,
+                                fontWeight: FontWeight.w500,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            );
+                          },
+                        ),
+                      ),
+                      
+                      // Year (if available)
+                      if (poem.year != null) ...[
+                        const SizedBox(width: 8),
+                        Text(
+                          '• ${poem.year}',
+                          style: TextStyle(
+                            fontSize: isCompact ? 10 : 11,
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                  
+                  // Historical context indicator (if available)
+                  if (!isCompact && poem.historicalContext != null && poem.historicalContext!.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Row(
+                      mainAxisAlignment: isUrdu ? MainAxisAlignment.end : MainAxisAlignment.start,
+                      children: [
+                        Icon(
+                          Icons.history_edu_outlined,
+                          size: 12,
+                          color: theme.colorScheme.tertiary,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Historical context available',
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: theme.colorScheme.tertiary,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            
+            // Simple arrow
+            Icon(
+              Icons.chevron_right,
+              color: theme.colorScheme.onSurfaceVariant,
+              size: 20,
             ),
           ],
         ),
       ),
     );
-  }
-
-  void _onTapDown() {
-    setState(() => _isPressed = true);
-    _animationController.reverse();
-  }
-
-  void _onTapUp() {
-    setState(() => _isPressed = false);
-    _animationController.forward();
   }
 
   void _navigateToPoem(BuildContext context) {
     HapticFeedback.lightImpact();
     Get.toNamed('/poem-detail', arguments: {
-      'poem': widget.poem,
-      'title': widget.title,
+      'poem': poem,
+      'title': title,
+      'view_type': 'detail',
     });
   }
 
   void _showOptions(BuildContext context) {
     showModalBottomSheet(
       context: context,
-      useRootNavigator: true,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
       builder: (context) => _buildOptionsBottomSheet(context),
@@ -368,59 +182,124 @@ class _PoemCardState extends State<PoemCard>
   }
 
   Widget _buildOptionsBottomSheet(BuildContext context) {
+    final theme = Theme.of(context);
+    final isUrdu = title.contains(RegExp(r'[\u0600-\u06FF]'));
+    
     return Container(
-      decoration: AppDecorations.bottomSheetDecoration(context),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       child: SafeArea(
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: AppDecorations.defaultPadding,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 40.w,
-                  height: 4.h,
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.4),
-                    borderRadius: BorderRadius.circular(2.r),
-                  ),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Drag handle
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.onSurfaceVariant.withOpacity(0.4),
+                  borderRadius: BorderRadius.circular(2),
                 ),
-                SizedBox(height: 20.h),
+              ),
+              const SizedBox(height: 20),
+              
+              // Poem info
+              Row(
+                children: [
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.secondary.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(
+                      Icons.article_outlined,
+                      color: theme.colorScheme.secondary,
+                      size: 24,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: isUrdu ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title,
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: theme.colorScheme.onSurface,
+                            fontFamily: isUrdu ? 'JameelNooriNastaleeq' : null,
+                            height: isUrdu ? 1.8 : 1.4,
+                          ),
+                          textDirection: isUrdu ? TextDirection.rtl : TextDirection.ltr,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 4),
+                        if (poem.year != null)
+                          Text(
+                            'Year: ${poem.year}',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+              
+              // Options
+              _buildOptionTile(
+                context,
+                icon: Icons.auto_awesome_outlined,
+                title: 'Analyze Poem',
+                onTap: () {
+                  Navigator.pop(context);
+                  Get.find<PoemController>().showPoemAnalysis(poem.data);
+                },
+              ),
+              
+              if (poem.historicalContext != null && poem.historicalContext!.isNotEmpty)
                 _buildOptionTile(
                   context,
-                  icon: Icons.history_edu_rounded,
+                  icon: Icons.history_edu_outlined,
                   title: 'Historical Context',
-                  subtitle: 'Learn about the background',
                   onTap: () {
                     Navigator.pop(context);
                     _showHistoricalContext(context);
                   },
                 ),
+              
+              if (poem.wikipediaUrl != null && poem.wikipediaUrl!.isNotEmpty)
                 _buildOptionTile(
                   context,
-                  icon: Icons.share_rounded,
-                  title: 'Share Poem',
-                  subtitle: 'Share with others',
+                  icon: Icons.open_in_new_outlined,
+                  title: 'Wikipedia',
                   onTap: () {
                     Navigator.pop(context);
-                    _sharePoem(context);
+                    _launchWikipedia();
                   },
                 ),
-                Obx(() {
-                  final isFavorite = Get.find<PoemController>().isFavorite(widget.poem);
-                  return _buildOptionTile(
-                    context,
-                    icon: isFavorite ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                    title: isFavorite ? 'Remove from Favorites' : 'Add to Favorites',
-                    subtitle: isFavorite ? 'Remove from your collection' : 'Save to your collection',
-                    onTap: () {
-                      Navigator.pop(context);
-                      Get.find<PoemController>().toggleFavorite(widget.poem);
-                    },
-                  );
-                }),
-              ],
-            ),
+              
+              _buildOptionTile(
+                context,
+                icon: Icons.share_outlined,
+                title: 'Share Poem',
+                onTap: () {
+                  Navigator.pop(context);
+                  // Implement sharing
+                },
+              ),
+            ],
           ),
         ),
       ),
@@ -431,75 +310,47 @@ class _PoemCardState extends State<PoemCard>
     BuildContext context, {
     required IconData icon,
     required String title,
-    required String subtitle,
     required VoidCallback onTap,
   }) {
     final theme = Theme.of(context);
     
     return ListTile(
-      contentPadding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 4.h),
-      leading: Container(
-        padding: EdgeInsets.all(8.w),
-        decoration: AppDecorations.iconContainerDecoration(
-          context,
-          theme.colorScheme.primary,
-        ),
-        child: Icon(
-          icon,
-          color: theme.colorScheme.primary,
-          size: 20.w,
-        ),
+      contentPadding: EdgeInsets.zero,
+      leading: Icon(
+        icon,
+        color: theme.colorScheme.primary,
+        size: 24,
       ),
       title: Text(
         title,
-        style: AppTextStyles.getTitleStyle(context),
-      ),
-      subtitle: Text(
-        subtitle,
-        style: AppTextStyles.getBodyStyle(context).copyWith(
-          color: theme.colorScheme.onSurfaceVariant,
+        style: TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.w500,
+          color: theme.colorScheme.onSurface,
         ),
       ),
       onTap: onTap,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12.r),
+        borderRadius: BorderRadius.circular(12),
       ),
     );
   }
 
   void _showHistoricalContext(BuildContext context) {
-    debugPrint('📖 Requesting analysis for: ${widget.poem.title}');
-    HistoricalContextSheet.show(context, widget.poem);
-  }
-
-  void _sharePoem(BuildContext context) {
-    // Implement poem sharing functionality
-    debugPrint('Sharing poem: ${widget.poem.title}');
-  }
-
-  Widget _buildStyledTitle(BuildContext context, String text, bool isUrdu, {bool isLarge = false, int maxLines = 2}) {
-    final theme = Theme.of(context);
-    final baseStyle = AppTextStyles.getTitleStyle(
-      context,
-      isUrdu: isUrdu,
-      isLarge: isLarge,
-    ).copyWith(
-      fontWeight: FontWeight.w700,
-      letterSpacing: isUrdu ? 0 : -0.2,
-    );
-
-    return ShaderMask(
-      shaderCallback: (bounds) => LinearGradient(
-        colors: [theme.colorScheme.primary, theme.colorScheme.secondary],
-      ).createShader(Rect.fromLTWH(0, 0, bounds.width, bounds.height)),
-      blendMode: BlendMode.srcIn,
-      child: Text(
-        text,
-        style: baseStyle,
-        textDirection: isUrdu ? TextDirection.rtl : TextDirection.ltr,
-        maxLines: maxLines,
-        overflow: TextOverflow.ellipsis,
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => HistoricalContextSheet(
+        poem: poem,
       ),
     );
+  }
+
+  void _launchWikipedia() async {
+    final url = Uri.parse(poem.wikipediaUrl!);
+    if (await canLaunchUrl(url)) {
+      await launchUrl(url);
+    }
   }
 }

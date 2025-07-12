@@ -5,16 +5,9 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'dart:io';
-import 'dart:math';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
-import 'package:pdf/pdf.dart';
-import 'package:pdf/widgets.dart' as pw;
 import 'package:flutter/services.dart';
-import '../../utils/screenshot_util.dart';
-import 'package:path/path.dart' as path;
-import 'package:image/image.dart' as img;
-import 'package:url_launcher/url_launcher.dart';
 
 
 /// Helper class to find RenderRepaintBoundary in the render tree
@@ -381,7 +374,7 @@ class ShareService {
       Offset(60, yOffset),
       Offset(740, yOffset),
       Paint()
-        ..color = textColor.withOpacity(0.6)
+        ..color = textColor.withValues(alpha: 0.6)
         ..strokeWidth = 2,
     );
 
@@ -429,7 +422,7 @@ class ShareService {
         text: 'Iqbal Literature App',
         style: TextStyle(
           fontSize: 14,
-          color: textColor.withOpacity(0.7),
+          color: textColor.withValues(alpha: 0.7),
           fontStyle: FontStyle.italic,
         ),
       ),
@@ -450,7 +443,7 @@ class ShareService {
     // This would require loading the background image asset
     // For now, we'll just add a subtle pattern
     final paint = Paint()
-      ..color = Colors.grey.withOpacity(0.1)
+      ..color = Colors.grey.withValues(alpha: 0.1)
       ..style = PaintingStyle.fill;
     
     canvas.drawRect(Rect.fromLTWH(0, 0, width, height), paint);

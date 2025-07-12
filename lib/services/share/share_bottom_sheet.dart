@@ -2,18 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'dart:ui' as ui;
-import 'dart:io';
-import 'package:get/get.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:path_provider/path_provider.dart';
 import '../../features/poems/models/poem.dart';
-import '../../core/themes/app_decorations.dart';
 import '../../core/themes/text_styles.dart';
 import '../../core/utils/responsive_utils.dart';
 import 'share_service.dart';
 import 'pdf_service.dart';
+import 'background_asset_manager.dart';
 
 class ShareBottomSheet extends StatelessWidget {
   final Poem poem;
@@ -23,7 +19,7 @@ class ShareBottomSheet extends StatelessWidget {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
-      barrierColor: Colors.black.withOpacity(0.3),
+      barrierColor: Colors.black.withValues(alpha: 0.3),
       isScrollControlled: true,
       useRootNavigator: true,
       builder: (context) => ShareBottomSheet(poem: poem),
@@ -123,16 +119,7 @@ class _ShareBottomSheetContentState extends State<_ShareBottomSheetContent>
     );
   }
 
-  final List<String?> backgroundOptions = [
-    null, // No background
-    'assets/images/notebook_lines.png',
-    'assets/images/backgrounds/paper_texture_1.png',
-    'assets/images/backgrounds/paper_texture_2.png',
-    'assets/images/backgrounds/paper_texture_3.png',
-    'assets/images/backgrounds/geometric_pattern_2.png',
-    'assets/images/backgrounds/islamic_pattern_2.png',
-    'assets/images/backgrounds/gradient_1.png',
-  ];
+  final List<String?> backgroundOptions = BackgroundAssetManager.backgroundOptions;
 
   final List<Color> colorOptions = [
     Colors.white,
@@ -163,7 +150,7 @@ class _ShareBottomSheetContentState extends State<_ShareBottomSheetContent>
               borderRadius: BorderRadius.vertical(top: Radius.circular(24.r)),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
+                  color: Colors.black.withValues(alpha: 0.1),
                   blurRadius: 20,
                   offset: const Offset(0, -5),
                 ),
@@ -215,7 +202,7 @@ class _ShareBottomSheetContentState extends State<_ShareBottomSheetContent>
       height: 4.h,
       margin: EdgeInsets.only(top: 16.h, bottom: 8.h),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.3),
+        color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.3),
         borderRadius: BorderRadius.circular(2.r),
       ),
     );
@@ -236,7 +223,7 @@ class _ShareBottomSheetContentState extends State<_ShareBottomSheetContent>
                 gradient: LinearGradient(
                   colors: [
                     theme.colorScheme.primary,
-                    theme.colorScheme.primary.withOpacity(0.8),
+                    theme.colorScheme.primary.withValues(alpha: 0.8),
                   ],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
@@ -244,7 +231,7 @@ class _ShareBottomSheetContentState extends State<_ShareBottomSheetContent>
                 borderRadius: BorderRadius.circular(16.r),
                 boxShadow: [
                   BoxShadow(
-                    color: theme.colorScheme.primary.withOpacity(0.3),
+                    color: theme.colorScheme.primary.withValues(alpha: 0.3),
                     blurRadius: 12,
                     offset: const Offset(0, 4),
                   ),
@@ -309,7 +296,7 @@ class _ShareBottomSheetContentState extends State<_ShareBottomSheetContent>
             borderRadius: ResponsiveUtils.getResponsiveBorderRadius(context, baseRadius: 20),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.1),
+                color: Colors.black.withValues(alpha: 0.1),
                 blurRadius: ResponsiveUtils.getResponsiveElevation(context, baseElevation: 20),
                 offset: const Offset(0, 8),
               ),
@@ -341,15 +328,23 @@ class _ShareBottomSheetContentState extends State<_ShareBottomSheetContent>
           // Background image if selected
           if (selectedBackground != null && selectedBackground!.isNotEmpty)
             Positioned.fill(
-              child: Opacity(
-                opacity: 0.2,
-                child: Image.asset(
-                  selectedBackground!,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Container(); // Return empty container on error
-                  },
-                ),
+              child: FutureBuilder<String?>(
+                future: Future.value(BackgroundAssetManager.getAssetPath(selectedBackground)),
+                builder: (context, snapshot) {
+                  if (snapshot.hasData && snapshot.data != null) {
+                    return Opacity(
+                      opacity: 0.2,
+                      child: Image.asset(
+                        snapshot.data!,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) {
+                          return Container(); // Return empty container on error
+                        },
+                      ),
+                    );
+                  }
+                  return Container();
+                },
               ),
             ),
           // Content
@@ -389,7 +384,7 @@ class _ShareBottomSheetContentState extends State<_ShareBottomSheetContent>
                 'Iqbal Literature',
                 style: TextStyle(
                   fontSize: 12.sp,
-                  color: adaptiveTextColor.withOpacity(0.7),
+                  color: adaptiveTextColor.withValues(alpha: 0.7),
                   fontStyle: FontStyle.italic,
                 ),
                 textAlign: TextAlign.center,
@@ -465,20 +460,20 @@ class _ShareBottomSheetContentState extends State<_ShareBottomSheetContent>
                       border: Border.all(
                         color: isSelected
                             ? Theme.of(context).colorScheme.primary
-                            : Theme.of(context).colorScheme.outline.withOpacity(0.3),
+                            : Theme.of(context).colorScheme.outline.withValues(alpha: 0.3),
                         width: isSelected ? 3 : 1.5,
                       ),
                       boxShadow: isSelected
                           ? [
                               BoxShadow(
-                                color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
+                                color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
                                 blurRadius: ResponsiveUtils.getResponsiveElevation(context, baseElevation: 12),
                                 offset: const Offset(0, 4),
                               ),
                             ]
                           : [
                               BoxShadow(
-                                color: Colors.black.withOpacity(0.05),
+                                color: Colors.black.withValues(alpha: 0.05),
                                 blurRadius: ResponsiveUtils.getResponsiveElevation(context, baseElevation: 8),
                                 offset: const Offset(0, 2),
                               ),
@@ -504,38 +499,60 @@ class _ShareBottomSheetContentState extends State<_ShareBottomSheetContent>
                               ),
                             ],
                           )
-                        : ClipRRect(
-                            borderRadius: ResponsiveUtils.getResponsiveBorderRadius(context, baseRadius: 14),
-                            child: Image.asset(
-                              bg,
-                              fit: BoxFit.cover,
-                              width: itemSize.w,
-                              height: itemSize.w,
-                              errorBuilder: (context, error, stackTrace) {
-                                debugPrint('Error loading background image: $bg - $error');
-                                return Container(
-                                  color: Colors.grey.shade200,
-                                  child: Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Icon(
-                                        Icons.broken_image,
-                                        color: Colors.grey.shade400,
-                                        size: ResponsiveUtils.getIconSize(context, baseSize: itemSize * 0.4),
-                                      ),
-                                      Text(
-                                        'Error',
-                                        style: TextStyle(
-                                          fontSize: (itemSize * 0.12 * context.fontSizeMultiplier).sp,
+                                            : FutureBuilder<String?>(
+                        future: Future.value(BackgroundAssetManager.getAssetPath(bg)),
+                        builder: (context, snapshot) {
+                          if (snapshot.hasData && snapshot.data != null) {
+                            return ClipRRect(
+                              borderRadius: ResponsiveUtils.getResponsiveBorderRadius(context, baseRadius: 14),
+                              child: Image.asset(
+                                snapshot.data!,
+                                fit: BoxFit.cover,
+                                width: itemSize.w,
+                                height: itemSize.w,
+                                errorBuilder: (context, error, stackTrace) {
+                                  debugPrint('Error loading background image: ${snapshot.data} - $error');
+                                  return Container(
+                                    color: Colors.grey.shade200,
+                                    child: Column(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Icon(
+                                          Icons.broken_image,
                                           color: Colors.grey.shade400,
+                                          size: ResponsiveUtils.getIconSize(context, baseSize: itemSize * 0.4),
                                         ),
-                                      ),
-                                    ],
-                                  ),
-                                );
-                              },
+                                        Text(
+                                          'Error',
+                                          style: TextStyle(
+                                            fontSize: (itemSize * 0.12 * context.fontSizeMultiplier).sp,
+                                            color: Colors.grey.shade400,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                },
+                              ),
+                            );
+                          }
+                          return Container(
+                            width: itemSize.w,
+                            height: itemSize.w,
+                            color: Colors.grey.shade200,
+                            child: Center(
+                              child: SizedBox(
+                                width: 20.w,
+                                height: 20.w,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.grey.shade400,
+                                ),
+                              ),
                             ),
-                          ),
+                          );
+                        },
+                      ),
                   ),
                 ),
               );
@@ -593,20 +610,20 @@ class _ShareBottomSheetContentState extends State<_ShareBottomSheetContent>
                       border: Border.all(
                         color: isSelected
                             ? Theme.of(context).colorScheme.primary
-                            : Theme.of(context).colorScheme.outline.withOpacity(0.3),
+                            : Theme.of(context).colorScheme.outline.withValues(alpha: 0.3),
                         width: isSelected ? 3 : 1.5,
                       ),
                       boxShadow: isSelected
                           ? [
                               BoxShadow(
-                                color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
+                                color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
                                 blurRadius: ResponsiveUtils.getResponsiveElevation(context, baseElevation: 12),
                                 offset: const Offset(0, 4),
                               ),
                             ]
                           : [
                               BoxShadow(
-                                color: Colors.black.withOpacity(0.1),
+                                color: Colors.black.withValues(alpha: 0.1),
                                 blurRadius: ResponsiveUtils.getResponsiveElevation(context, baseElevation: 8),
                                 offset: const Offset(0, 2),
                               ),
@@ -666,7 +683,7 @@ class _ShareBottomSheetContentState extends State<_ShareBottomSheetContent>
         Container(
           padding: EdgeInsets.symmetric(horizontal: 16.w),
           decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.5),
+            color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
             borderRadius: BorderRadius.circular(16.r),
           ),
           child: Row(
@@ -682,7 +699,7 @@ class _ShareBottomSheetContentState extends State<_ShareBottomSheetContent>
                     : null,
                 style: IconButton.styleFrom(
                   backgroundColor: fontSize > 14.0
-                      ? Theme.of(context).colorScheme.primary.withOpacity(0.1)
+                      ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.1)
                       : Colors.transparent,
                 ),
               ),
@@ -690,9 +707,9 @@ class _ShareBottomSheetContentState extends State<_ShareBottomSheetContent>
                 child: SliderTheme(
                   data: SliderTheme.of(context).copyWith(
                     activeTrackColor: Theme.of(context).colorScheme.primary,
-                    inactiveTrackColor: Theme.of(context).colorScheme.outline.withOpacity(0.3),
+                    inactiveTrackColor: Theme.of(context).colorScheme.outline.withValues(alpha: 0.3),
                     thumbColor: Theme.of(context).colorScheme.primary,
-                    overlayColor: Theme.of(context).colorScheme.primary.withOpacity(0.2),
+                    overlayColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.2),
                     thumbShape: RoundSliderThumbShape(enabledThumbRadius: 12.r),
                     overlayShape: RoundSliderOverlayShape(overlayRadius: 24.r),
                   ),
@@ -720,7 +737,7 @@ class _ShareBottomSheetContentState extends State<_ShareBottomSheetContent>
                     : null,
                 style: IconButton.styleFrom(
                   backgroundColor: fontSize < 26.0
-                      ? Theme.of(context).colorScheme.primary.withOpacity(0.1)
+                      ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.1)
                       : Colors.transparent,
                 ),
               ),
@@ -794,7 +811,7 @@ class _ShareBottomSheetContentState extends State<_ShareBottomSheetContent>
         borderRadius: ResponsiveUtils.getResponsiveBorderRadius(context, baseRadius: 16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: ResponsiveUtils.getResponsiveElevation(context, baseElevation: 10),
             offset: const Offset(0, 4),
           ),
@@ -818,7 +835,7 @@ class _ShareBottomSheetContentState extends State<_ShareBottomSheetContent>
                     borderRadius: ResponsiveUtils.getResponsiveBorderRadius(context, baseRadius: 16),
                     boxShadow: [
                       BoxShadow(
-                        color: gradient.colors.first.withOpacity(0.3),
+                        color: gradient.colors.first.withValues(alpha: 0.3),
                         blurRadius: ResponsiveUtils.getResponsiveElevation(context, baseElevation: 12),
                         offset: const Offset(0, 4),
                       ),

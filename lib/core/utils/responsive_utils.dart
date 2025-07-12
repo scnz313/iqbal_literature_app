@@ -6,6 +6,29 @@ class ResponsiveUtils {
   static const double _tabletBreakpoint = 900;
   static const double _desktopBreakpoint = 1200;
 
+  /// Check if ScreenUtil is properly initialized
+  static bool get _isScreenUtilInitialized {
+    try {
+      final testValue = 1.0.sp;
+      return testValue.isFinite && !testValue.isNaN;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /// Safe ScreenUtil method with fallback
+  static double _safeScreenUtil(double Function() screenUtilMethod, double fallback) {
+    if (!_isScreenUtilInitialized) {
+      return fallback;
+    }
+    try {
+      final result = screenUtilMethod();
+      return result.isFinite && !result.isNaN ? result : fallback;
+    } catch (e) {
+      return fallback;
+    }
+  }
+
   /// Get the current screen type
   static ScreenType getScreenType(BuildContext context) {
     final width = MediaQuery.of(context).size.width;
@@ -41,13 +64,13 @@ class ResponsiveUtils {
     final screenType = getScreenType(context);
     switch (screenType) {
       case ScreenType.mobile:
-        return EdgeInsets.all(16.w);
+        return EdgeInsets.all(_safeScreenUtil(() => 16.w, 16));
       case ScreenType.tablet:
-        return EdgeInsets.all(24.w);
+        return EdgeInsets.all(_safeScreenUtil(() => 24.w, 24));
       case ScreenType.desktop:
-        return EdgeInsets.all(32.w);
+        return EdgeInsets.all(_safeScreenUtil(() => 32.w, 32));
       case ScreenType.largeDesktop:
-        return EdgeInsets.all(40.w);
+        return EdgeInsets.all(_safeScreenUtil(() => 40.w, 40));
     }
   }
 
@@ -56,13 +79,13 @@ class ResponsiveUtils {
     final screenType = getScreenType(context);
     switch (screenType) {
       case ScreenType.mobile:
-        return EdgeInsets.all(8.w);
+        return EdgeInsets.all(_safeScreenUtil(() => 8.w, 8));
       case ScreenType.tablet:
-        return EdgeInsets.all(12.w);
+        return EdgeInsets.all(_safeScreenUtil(() => 12.w, 12));
       case ScreenType.desktop:
-        return EdgeInsets.all(16.w);
+        return EdgeInsets.all(_safeScreenUtil(() => 16.w, 16));
       case ScreenType.largeDesktop:
-        return EdgeInsets.all(20.w);
+        return EdgeInsets.all(_safeScreenUtil(() => 20.w, 20));
     }
   }
 
@@ -84,7 +107,7 @@ class ResponsiveUtils {
   /// Get responsive icon size
   static double getIconSize(BuildContext context, {double baseSize = 24}) {
     final multiplier = getFontSizeMultiplier(context);
-    return (baseSize * multiplier).w;
+    return _safeScreenUtil(() => (baseSize * multiplier).w, baseSize * multiplier);
   }
 
   /// Get responsive border radius
@@ -105,7 +128,7 @@ class ResponsiveUtils {
         radius = baseRadius * 1.6;
         break;
     }
-    return BorderRadius.circular(radius.r);
+    return BorderRadius.circular(_safeScreenUtil(() => radius.r, radius));
   }
 
   /// Get responsive elevation
@@ -164,13 +187,13 @@ class ResponsiveUtils {
     final screenType = getScreenType(context);
     switch (screenType) {
       case ScreenType.mobile:
-        return baseSpacing.h;
+        return _safeScreenUtil(() => baseSpacing.h, baseSpacing);
       case ScreenType.tablet:
-        return (baseSpacing * 1.2).h;
+        return _safeScreenUtil(() => (baseSpacing * 1.2).h, baseSpacing * 1.2);
       case ScreenType.desktop:
-        return (baseSpacing * 1.4).h;
+        return _safeScreenUtil(() => (baseSpacing * 1.4).h, baseSpacing * 1.4);
       case ScreenType.largeDesktop:
-        return (baseSpacing * 1.6).h;
+        return _safeScreenUtil(() => (baseSpacing * 1.6).h, baseSpacing * 1.6);
     }
   }
 
@@ -179,13 +202,13 @@ class ResponsiveUtils {
     final screenType = getScreenType(context);
     switch (screenType) {
       case ScreenType.mobile:
-        return baseSize.w;
+        return _safeScreenUtil(() => baseSize.w, baseSize);
       case ScreenType.tablet:
-        return (baseSize * 1.2).w;
+        return _safeScreenUtil(() => (baseSize * 1.2).w, baseSize * 1.2);
       case ScreenType.desktop:
-        return (baseSize * 1.4).w;
+        return _safeScreenUtil(() => (baseSize * 1.4).w, baseSize * 1.4);
       case ScreenType.largeDesktop:
-        return (baseSize * 1.6).w;
+        return _safeScreenUtil(() => (baseSize * 1.6).w, baseSize * 1.6);
     }
   }
 
@@ -196,13 +219,13 @@ class ResponsiveUtils {
     
     switch (screenType) {
       case ScreenType.mobile:
-        return screenHeight < 700 ? 240.h : 280.h;
+        return screenHeight < 700 ? _safeScreenUtil(() => 240.h, 240) : _safeScreenUtil(() => 280.h, 280);
       case ScreenType.tablet:
-        return screenHeight < 900 ? 320.h : 360.h;
+        return screenHeight < 900 ? _safeScreenUtil(() => 320.h, 320) : _safeScreenUtil(() => 360.h, 360);
       case ScreenType.desktop:
-        return screenHeight < 1000 ? 400.h : 450.h;
+        return screenHeight < 1000 ? _safeScreenUtil(() => 400.h, 400) : _safeScreenUtil(() => 450.h, 450);
       case ScreenType.largeDesktop:
-        return 500.h;
+        return _safeScreenUtil(() => 500.h, 500);
     }
   }
 
@@ -228,13 +251,13 @@ class ResponsiveUtils {
     final screenType = getScreenType(context);
     switch (screenType) {
       case ScreenType.mobile:
-        return 80.h;
+        return _safeScreenUtil(() => 80.h, 80);
       case ScreenType.tablet:
-        return 90.h;
+        return _safeScreenUtil(() => 90.h, 90);
       case ScreenType.desktop:
-        return 100.h;
+        return _safeScreenUtil(() => 100.h, 100);
       case ScreenType.largeDesktop:
-        return 110.h;
+        return _safeScreenUtil(() => 110.h, 110);
     }
   }
 

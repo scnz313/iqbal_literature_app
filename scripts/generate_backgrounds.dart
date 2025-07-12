@@ -4,7 +4,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
-import 'package:image/image.dart' as img;
+
 import 'package:path/path.dart' as path;
 
 /// This script generates background patterns for sharing poetry
@@ -92,9 +92,9 @@ class _BackgroundGeneratorScreenState extends State<BackgroundGeneratorScreen> {
   Future<void> _generateCalligraphyPatterns(String outputDir) async {
     final GlobalKey key = GlobalKey();
     final colors = [
-      Colors.indigo.withOpacity(0.2),
-      Colors.teal.withOpacity(0.2),
-      Colors.amber.withOpacity(0.2),
+      Colors.indigo.withValues(alpha: 0.2),
+      Colors.teal.withValues(alpha: 0.2),
+      Colors.amber.withValues(alpha: 0.2),
     ];
 
     for (int i = 0; i < colors.length; i++) {
@@ -119,9 +119,9 @@ class _BackgroundGeneratorScreenState extends State<BackgroundGeneratorScreen> {
   Future<void> _generateGeometricPatterns(String outputDir) async {
     final GlobalKey key = GlobalKey();
     final colors = [
-      Colors.blue.withOpacity(0.2),
-      Colors.purple.withOpacity(0.2),
-      Colors.green.withOpacity(0.2),
+      Colors.blue.withValues(alpha: 0.2),
+      Colors.purple.withValues(alpha: 0.2),
+      Colors.green.withValues(alpha: 0.2),
     ];
 
     for (int i = 0; i < colors.length; i++) {
@@ -203,9 +203,9 @@ class _BackgroundGeneratorScreenState extends State<BackgroundGeneratorScreen> {
   Future<void> _generateIslamicPatterns(String outputDir) async {
     final GlobalKey key = GlobalKey();
     final colors = [
-      Colors.teal.withOpacity(0.3),
-      Colors.indigo.withOpacity(0.3),
-      Colors.amber.withOpacity(0.3),
+      Colors.teal.withValues(alpha: 0.3),
+      Colors.indigo.withValues(alpha: 0.3),
+      Colors.amber.withValues(alpha: 0.3),
     ];
 
     for (int i = 0; i < colors.length; i++) {
@@ -435,7 +435,7 @@ class PaperTexturePainter extends CustomPainter {
       final length = 2 + random.nextDouble() * 4;
       final angle = random.nextDouble() * math.pi;
 
-      paint.color = Colors.black.withOpacity(0.05 * intensity);
+      paint.color = Colors.black.withValues(alpha: 0.05 * intensity);
 
       canvas.drawLine(
         Offset(x, y),
@@ -449,7 +449,7 @@ class PaperTexturePainter extends CustomPainter {
       final x = random.nextDouble() * size.width;
       final y = random.nextDouble() * size.height;
 
-      paint.color = Colors.black.withOpacity(0.03 * intensity);
+      paint.color = Colors.black.withValues(alpha: 0.03 * intensity);
 
       canvas.drawCircle(Offset(x, y), 0.5, paint);
     }

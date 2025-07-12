@@ -70,7 +70,7 @@ class _NoteDialogState extends State<NoteDialog> {
             // Header with word
             Container(
               decoration: BoxDecoration(
-                color: theme.colorScheme.primaryContainer.withOpacity(0.3),
+                color: theme.colorScheme.primaryContainer.withValues(alpha: 0.3),
                 borderRadius: BorderRadius.circular(12),
               ),
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -91,7 +91,7 @@ class _NoteDialogState extends State<NoteDialog> {
                       Icon(
                         _isExistingNote ? Icons.edit_note : Icons.note_add,
                         size: 18,
-                        color: theme.colorScheme.primary.withOpacity(0.7),
+                        color: theme.colorScheme.primary.withValues(alpha: 0.7),
                       ),
                       const SizedBox(width: 8),
                       Text(
@@ -117,7 +117,7 @@ class _NoteDialogState extends State<NoteDialog> {
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
+                    color: Colors.black.withValues(alpha: 0.05),
                     blurRadius: 10,
                     spreadRadius: 0,
                     offset: const Offset(0, 2),
@@ -133,10 +133,10 @@ class _NoteDialogState extends State<NoteDialog> {
                 decoration: InputDecoration(
                   hintText: 'Enter your note here...',
                   hintStyle: theme.textTheme.bodyLarge?.copyWith(
-                    color: theme.colorScheme.onSurface.withOpacity(0.5),
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
                   ),
                   filled: true,
-                  fillColor: theme.colorScheme.surfaceVariant.withOpacity(0.3),
+                  fillColor: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(16),
                     borderSide: BorderSide.none,
@@ -186,7 +186,7 @@ class _NoteDialogState extends State<NoteDialog> {
                   child: Text(
                     'Cancel',
                     style: TextStyle(
-                      color: theme.colorScheme.onSurface.withOpacity(0.8),
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.8),
                       fontSize: 12,
                     ),
                   ),
@@ -249,6 +249,8 @@ class _NoteDialogState extends State<NoteDialog> {
         verse: widget.verse,
       );
       _poemController.saveNote(note);
+      // Refresh notes list so highlighting updates immediately
+      _poemController.loadPoemNotes(widget.poemId);
       Navigator.pop(context);
     }
   }
@@ -261,6 +263,8 @@ class _NoteDialogState extends State<NoteDialog> {
     );
     if (existingNote != null) {
       _poemController.deleteWordNote(existingNote);
+      // Refresh notes list
+      _poemController.loadPoemNotes(widget.poemId);
       Navigator.pop(context);
     }
   }

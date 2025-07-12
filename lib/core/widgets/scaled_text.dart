@@ -26,6 +26,9 @@ class ScaledText extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    try {
+      // Check if FontController is registered before using it
+      if (Get.isRegistered<FontController>()) {
     return GetX<FontController>(
       builder: (controller) {
         final baseSize = style?.fontSize ??
@@ -33,9 +36,10 @@ class ScaledText extends StatelessWidget {
             14.0;
 
         // Apply both font controller scaling and responsive scaling if enabled
+        final double scaledSize = baseSize * controller.scaleFactor.value;
         final double finalFontSize = responsive
-            ? (baseSize * controller.scaleFactor.value).sp
-            : baseSize * controller.scaleFactor.value;
+            ? ResponsiveUtil.getFontSize(scaledSize)
+            : scaledSize;
 
         final scaledStyle = style?.copyWith(
           fontSize: finalFontSize,
@@ -51,5 +55,39 @@ class ScaledText extends StatelessWidget {
         );
       },
     );
+      } else {
+        // Fallback to regular Text widget if FontController is not available
+        final baseSize = style?.fontSize ??
+            Theme.of(context).textTheme.bodyMedium?.fontSize ??
+            14.0;
+        
+        final double finalFontSize = responsive
+            ? ResponsiveUtil.getFontSize(baseSize)
+            : baseSize;
+
+        final scaledStyle = style?.copyWith(
+          fontSize: finalFontSize,
+        );
+
+        return Text(
+          text,
+          style: scaledStyle,
+          textAlign: textAlign,
+          textDirection: textDirection,
+          maxLines: maxLines,
+          overflow: overflow,
+        );
+      }
+    } catch (e) {
+      // Ultimate fallback - just return a basic Text widget
+      return Text(
+        text,
+        style: style,
+        textAlign: textAlign,
+        textDirection: textDirection,
+        maxLines: maxLines,
+        overflow: overflow,
+      );
+    }
   }
 }

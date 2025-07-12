@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import '../controllers/poem_controller.dart';
+
 import '../../../data/models/notes/word_note.dart';
 import '../../../data/repositories/note_repository.dart';
 import 'note_dialog.dart';

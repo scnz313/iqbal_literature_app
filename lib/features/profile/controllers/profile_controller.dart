@@ -24,7 +24,6 @@ class ProfileController extends GetxController {
       // profileImage.value = userProfile.imageUrl;
     } catch (e) {
       // Handle error
-      print('Error loading profile: $e');
     } finally {
       isLoading.value = false;
     }
@@ -43,7 +42,6 @@ class ProfileController extends GetxController {
       // await loadUserProfile();
     } catch (e) {
       // Handle error
-      print('Error updating profile: $e');
     } finally {
       isLoading.value = false;
     }

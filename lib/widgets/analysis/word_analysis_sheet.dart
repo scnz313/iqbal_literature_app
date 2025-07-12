@@ -31,7 +31,7 @@ class WordAnalysisSheet extends StatelessWidget {
         borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 10,
             spreadRadius: 5,
           ),
@@ -168,7 +168,7 @@ class WordAnalysisSheet extends StatelessWidget {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
         side: BorderSide(
-          color: Theme.of(context).dividerColor.withOpacity(0.5),
+          color: Theme.of(context).dividerColor.withValues(alpha: 0.5),
           width: 0.5,
         ),
       ),

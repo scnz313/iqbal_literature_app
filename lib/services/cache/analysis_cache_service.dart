@@ -1,7 +1,8 @@
-import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 import 'package:hive/hive.dart';
 import 'package:intl/intl.dart';
+import 'dart:convert'; // Added for jsonEncode
 
 class AnalysisCacheService {
   static const String _boxName = 'analysis_cache';
@@ -137,30 +138,30 @@ class AnalysisCacheService {
     debugPrint('📦 Cached word analysis for "$word"');
   }
 
-  Future<Map<String, dynamic>?> getPoemAnalysis(int poemId) async {
+  Future<dynamic> getPoemAnalysis(int poemId) async {
     await _initialize();
     final key = '${_poemAnalysisPrefix}$poemId';
     final cachedData = _cacheBox.get(key);
 
     if (cachedData != null) {
       try {
-        final Map<String, dynamic> data = Map<String, dynamic>.from(cachedData);
+        Map<String, dynamic> data;
+        if (cachedData is Map && cachedData.keys.every((k) => k is String)) {
+          data = Map<String, dynamic>.from(cachedData);
+        } else {
+          // Invalid structure – purge and return null
+          await _cacheBox.delete(key);
+          debugPrint('🗑️ Removed corrupt poem analysis cache for #$poemId');
+          return null;
+        }
 
-        // Check if cache is still valid
+        // Check timestamp validity
         if (data.containsKey('timestamp')) {
           final timestamp = DateTime.parse(data['timestamp']);
           if (DateTime.now().difference(timestamp) < _cacheDuration) {
             debugPrint('📦 Using cached poem analysis for poem #$poemId');
-            // Add to history
             await _addToHistory('Poem #$poemId', 'poem', data['timestamp']);
-
-            // Make sure we return a proper Map<String, dynamic>
-            if (data['analysis'] is Map) {
-              return Map<String, dynamic>.from(data['analysis']);
-            } else {
-              debugPrint('⚠️ Cached poem analysis has invalid format');
-              return null;
-            }
+            return data['analysis']; // Could be String or Map
           }
         }
       } catch (e) {
@@ -172,19 +173,17 @@ class AnalysisCacheService {
     return null;
   }
 
-  Future<void> cachePoemAnalysis(
-      int poemId, Map<String, dynamic> analysis) async {
+  Future<void> cachePoemAnalysis(int poemId, dynamic analysis) async {
     await _initialize();
     final key = '${_poemAnalysisPrefix}$poemId';
     final timestamp = DateTime.now().toIso8601String();
 
     final data = {
-      'analysis': analysis,
+      'analysis': (analysis is Map) ? jsonEncode(analysis) : analysis,
       'timestamp': timestamp,
     };
 
     await _cacheBox.put(key, data);
-    // Add to history
     await _addToHistory('Poem #$poemId', 'poem', timestamp);
     debugPrint('📦 Cached poem analysis for poem #$poemId');
   }
@@ -247,15 +246,32 @@ class AnalysisCacheService {
   Future<void> _addToHistory(String item, String type, String timestamp) async {
     await _initialize();
     
-    // Get current history or create empty list
-    var history = _cacheBox.get(_historyKey);
-    List<Map<String, dynamic>> historyList;
-    
-    if (history == null) {
-      historyList = [];
-    } else {
-      // Only convert to list if we need to modify it
-      historyList = List<Map<String, dynamic>>.from(history);
+    final rawHistory = _cacheBox.get(_historyKey);
+
+    // Sanitize any previously-stored malformed history structure so that
+    // it never breaks the caching layer again. We defensively parse every
+    // entry and discard anything that does not exactly match the expected
+    // {"item": String, "type": String, "timestamp": String} shape.
+    final List<Map<String, dynamic>> historyList = [];
+
+    if (rawHistory is List) {
+      for (final entry in rawHistory) {
+        try {
+          if (entry is Map && entry.keys.every((k) => k is String)) {
+            // Deep-copy to the target typed map – this will throw if any key
+            // is not a String, which we then catch and skip.
+            historyList.add(Map<String, dynamic>.from(entry));
+          } else {
+            debugPrint('⚠️ Skipping invalid history entry (wrong type): $entry');
+          }
+        } catch (e) {
+          debugPrint('⚠️ Skipping corrupt history entry: $e');
+        }
+      }
+    } else if (rawHistory != null) {
+      // The stored value is not a list at all – purge it to avoid repeated failures.
+      debugPrint('🗑️ Removing malformed analysis history structure');
+      await _cacheBox.delete(_historyKey);
     }
 
     // Check if we're adding a duplicate (same item within last 5 entries)
@@ -279,7 +295,7 @@ class AnalysisCacheService {
       'timestamp': timestamp,
     };
 
-    // Implement efficient insertion with size limit
+    // Implement efficient insertion with size limit (keep newest 100)
     if (historyList.length >= 100) {
       // Remove oldest entry before adding new one
       historyList.removeLast();

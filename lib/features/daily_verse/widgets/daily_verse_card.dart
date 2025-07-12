@@ -39,8 +39,8 @@ class DailyVerseCard extends GetView<DailyVerseController> {
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                colorScheme.primary.withOpacity(0.1),
-                colorScheme.primary.withOpacity(0.05),
+                colorScheme.primary.withValues(alpha: 0.1),
+                colorScheme.primary.withValues(alpha: 0.05),
               ],
             ),
           ),
@@ -80,7 +80,7 @@ class DailyVerseCard extends GetView<DailyVerseController> {
 
               // Divider
               Divider(
-                color: colorScheme.primary.withOpacity(0.2),
+                color: colorScheme.primary.withValues(alpha: 0.2),
                 thickness: 1,
                 height: 24.h,
               ),
@@ -89,7 +89,7 @@ class DailyVerseCard extends GetView<DailyVerseController> {
               Text(
                 verse.translation,
                 style: textTheme.bodyMedium?.copyWith(
-                  color: colorScheme.onSurface.withOpacity(0.8),
+                  color: colorScheme.onSurface.withValues(alpha: 0.8),
                   fontStyle: FontStyle.italic,
                 ),
               ),
@@ -111,7 +111,7 @@ class DailyVerseCard extends GetView<DailyVerseController> {
                       vertical: 4.h,
                     ),
                     decoration: BoxDecoration(
-                      color: colorScheme.primary.withOpacity(0.1),
+                      color: colorScheme.primary.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(12.r),
                     ),
                     child: Text(
@@ -229,7 +229,7 @@ class DailyVerseCard extends GetView<DailyVerseController> {
         color: colorScheme.surface,
         borderRadius: BorderRadius.circular(8.r),
         border: Border.all(
-          color: colorScheme.primary.withOpacity(0.1),
+          color: colorScheme.primary.withValues(alpha: 0.1),
         ),
       ),
       child: Column(
@@ -246,7 +246,7 @@ class DailyVerseCard extends GetView<DailyVerseController> {
           Text(
             content,
             style: textTheme.bodySmall?.copyWith(
-              color: colorScheme.onSurface.withOpacity(0.8),
+              color: colorScheme.onSurface.withValues(alpha: 0.8),
             ),
           ),
         ],
@@ -310,13 +310,13 @@ class DailyVerseCard extends GetView<DailyVerseController> {
           children: [
             Icon(
               Icons.lightbulb_outline,
-              color: colorScheme.primary.withOpacity(0.5),
+              color: colorScheme.primary.withValues(alpha: 0.5),
               size: 32.w,
             ),
             SizedBox(height: 8.h),
             Text(
               'No verse available',
-              style: TextStyle(color: colorScheme.onSurface.withOpacity(0.5)),
+              style: TextStyle(color: colorScheme.onSurface.withValues(alpha: 0.5)),
             ),
           ],
         ),

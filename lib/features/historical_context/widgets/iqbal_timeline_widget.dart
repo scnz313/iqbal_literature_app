@@ -33,7 +33,7 @@ class IqbalTimelineWidget extends StatelessWidget {
             indicator: _buildIndicator(context, event),
           ),
           beforeLineStyle: LineStyle(
-            color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
+            color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
           ),
           endChild: _buildEventCard(context, event),
           startChild: _buildDateLabel(context, event),

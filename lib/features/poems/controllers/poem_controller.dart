@@ -1,34 +1,35 @@
 import 'dart:async';
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/poem.dart';
 import '../../../data/repositories/poem_repository.dart';
 import '../../../services/share/share_bottom_sheet.dart';
-import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:iqbal_literature/services/analysis/text_analysis_service.dart';
 import 'package:iqbal_literature/services/analysis/analysis_bottom_sheet.dart';
-import '../../../data/services/analytics_service.dart';
-import '../../../services/api/gemini_api.dart';
-import '../../books/controllers/book_controller.dart';
-import 'dart:math'; // Add this import for min function
 import 'dart:convert'; // Add this import for jsonDecode
 import '../../../data/repositories/note_repository.dart';
 import '../../../data/models/notes/word_note.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import '../../../services/api/openrouter_service.dart';
+import '../../../services/cache/analysis_cache_service.dart';
+import '../../../data/services/analytics_service.dart';
+import '../../../services/api/gemini_api.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
+import '../../books/controllers/book_controller.dart';
 
 class PoemController extends GetxController {
   final PoemRepository _poemRepository;
   final AnalyticsService _analyticsService;
-  final TextAnalysisService _textAnalysisService;
   final NoteRepository _noteRepository = NoteRepository();
   late Box<WordNote> _notesBox;
 
   PoemController(
     this._poemRepository,
     this._analyticsService,
-    this._textAnalysisService,
-  );
+  ) {
+    // Remove the TextAnalysisService dependency
+  }
 
   final RxList<Poem> poems = <Poem>[].obs;
   final RxString currentBookName = ''.obs;
@@ -170,6 +171,61 @@ class PoemController extends GetxController {
     }
   }
 
+  /// Navigate to a random poem from the entire collection
+  Future<void> openRandomPoem() async {
+    try {
+      debugPrint('🎲 Opening random poem...');
+      
+      // Get all poems if not already loaded
+      List<Poem> allPoems = poems.value;
+      if (allPoems.isEmpty) {
+        debugPrint('📚 Loading all poems for random selection...');
+        allPoems = await _poemRepository.getAllPoems();
+      }
+      
+      if (allPoems.isEmpty) {
+        debugPrint('❌ No poems available for random selection');
+        Get.snackbar(
+          'No Poems Available',
+          'Unable to load poems for random selection',
+          snackPosition: SnackPosition.BOTTOM,
+          duration: const Duration(seconds: 2),
+        );
+        return;
+      }
+      
+      // Select a random poem
+      final random = Random();
+      final randomIndex = random.nextInt(allPoems.length);
+      final randomPoem = allPoems[randomIndex];
+      
+      debugPrint('🎯 Selected random poem: ${randomPoem.title} (ID: ${randomPoem.id})');
+      
+      // Log analytics event
+      _analyticsService.logEvent(
+        name: 'random_poem_opened',
+        parameters: {
+          'poem_id': randomPoem.id,
+          'poem_title': randomPoem.title,
+          'book_id': randomPoem.bookId,
+          'total_poems_available': allPoems.length,
+        },
+      );
+      
+      // Navigate to poem detail view
+      Get.toNamed('/poem-detail', arguments: randomPoem);
+      
+    } catch (e) {
+      debugPrint('❌ Error opening random poem: $e');
+      Get.snackbar(
+        'Error',
+        'Failed to open random poem. Please try again.',
+        snackPosition: SnackPosition.BOTTOM,
+        duration: const Duration(seconds: 2),
+      );
+    }
+  }
+
   bool isFavorite(Poem poem) {
     return favorites.contains(poem.id.toString());
   }
@@ -273,70 +329,141 @@ class PoemController extends GetxController {
     }
   }
 
-  Future<String> analyzePoem(String poemText) async {
+  // Generate a cache key for poem analysis
+  String _generateCacheKey(String poemText) {
+    // Use first 100 characters or full text if shorter, plus text length
+    final textSample = poemText.length > 100 ? poemText.substring(0, 100) : poemText;
+    return '${textSample.hashCode}_${poemText.length}';
+  }
+
+  Future<String> analyzePoemWithFallback(String poemText) async {
+    final cacheKey = 'poem_analysis_${poemText.hashCode}';
+    
+    try {
+      final cacheService = AnalysisCacheService();
+      await cacheService.init();
+      
+      final cachedResult = await cacheService.getPoemAnalysis(cacheKey.hashCode);
+      if (cachedResult != null && cachedResult is String && cachedResult.isNotEmpty) {
+        debugPrint('📦 Using cached poem analysis');
+        poemAnalysis.value = cachedResult;
+        return cachedResult;
+      }
+    } catch (cacheError) {
+      debugPrint('⚠️ Cache retrieval error: $cacheError');
+    }
+
     try {
       isAnalyzing.value = true;
-      poemAnalysis.value = '';
-
-      debugPrint(
-          '📝 Analyzing poem: ${poemText.substring(0, min(50, poemText.length))}...');
-
-      // Try to get analysis from TextAnalysisService
-      final result = await _textAnalysisService.analyzePoem(poemText);
-
-      // Log the analysis result for debugging
-      debugPrint('📊 Analysis result type: ${result.runtimeType}');
-
-      // Handle the result based on its type
-      String formattedAnalysis;
-
-      if (result is String) {
-        // If it's already a string, we can use it directly
-        formattedAnalysis = result;
-      } else if (result is Map<String, dynamic>) {
-        // Try to get the formatted analysis from the map
-        try {
-          formattedAnalysis = _formatPoemAnalysis(result);
-        } catch (formatError) {
-          debugPrint('⚠️ Error formatting map result: $formatError');
-          // Fallback format
-          formattedAnalysis =
-              _createFallbackAnalysis(poemText, 'Error formatting response');
-        }
-      } else {
-        // For other types, create a fallback
-        debugPrint('⚠️ Unexpected result type: ${result.runtimeType}');
-        formattedAnalysis =
-            _createFallbackAnalysis(poemText, 'Unexpected response format');
+      
+      // Use the new fallback method with enhanced error handling
+      final analysis = await _analyzeWithFallback(poemText);
+      
+      poemAnalysis.value = analysis;
+      
+      // Cache the result
+      try {
+        final cacheService = AnalysisCacheService();
+        await cacheService.init();
+        await cacheService.cachePoemAnalysis(cacheKey.hashCode, analysis);
+      } catch (cacheError) {
+        debugPrint('⚠️ Cache save error: $cacheError');
       }
-
-      isAnalyzing.value = false;
-      poemAnalysis.value = formattedAnalysis;
-
-      return formattedAnalysis;
+      
+      return analysis;
     } catch (error) {
       debugPrint('❌ Poem analysis error: $error');
-
-      // Check for the specific type error
-      final isTypeError =
-          error.toString().contains("type '_Map<dynamic, dynamic>'") ||
-              error
-                  .toString()
-                  .contains("is not a subtype of type 'Map<String, dynamic>'");
-
-      String fallbackAnalysis;
-      if (isTypeError) {
-        debugPrint('⚠️ Handling type error for analysis');
-        fallbackAnalysis =
-            _createFallbackAnalysis(poemText, 'Type conversion error');
-      } else {
-        fallbackAnalysis = _createFallbackAnalysis(poemText, error.toString());
-      }
-
-      isAnalyzing.value = false;
+      final fallbackAnalysis = _createFallbackAnalysis(poemText, 'Analysis failed');
       poemAnalysis.value = fallbackAnalysis;
-
       return fallbackAnalysis;
+    } finally {
+      isAnalyzing.value = false;
+    }
+  }
+
+  // New method with proper fallback handling
+  Future<String> _analyzeWithFallback(String poemText) async {
+    try {
+      debugPrint('🤖 Starting analysis with Gemini API...');
+      
+      // Try Gemini API first with raw text response
+      final response = await GeminiAPI.generateContent(
+        prompt: '''Analyze this poem by Allama Iqbal with exceptional depth and scholarly expertise:
+
+POEM:
+$poemText
+
+Provide a comprehensive analysis covering:
+
+**SUMMARY:**
+Write a detailed summary explaining the poem's core message, philosophical significance, and unique contribution to Iqbal's work.
+
+**THEMES:**
+• Primary Theme: [Central message with textual evidence]
+• Secondary Themes: [Other important ideas with examples]
+• Philosophical Elements: [Connection to Iqbal's Khudi philosophy]
+• Spiritual Dimensions: [Mystical/Sufi elements]
+• Social Commentary: [Social observations]
+• Educational Messages: [Lessons for readers]
+
+**HISTORICAL CONTEXT:**
+• Dating: [When likely written and evidence]
+• Historical Events: [Influences from Iqbal's era]
+• Intellectual Development: [How it fits Iqbal's journey]
+• Cultural Context: [Early 20th century Muslim India]
+• Connection to Major Works: [Links to other works]
+• Literary Influences: [Western, Islamic, Persian influences]
+• Reform Context: [Role in Islamic renaissance]
+
+**LITERARY ANALYSIS:**
+• Structure and Form: [Formal elements, meter, rhyme]
+• Language and Diction: [Word choice, tone, style]
+• Imagery and Symbolism: [Metaphors, symbols, meanings]
+• Poetic Devices: [Literary techniques with examples]
+• Textual Analysis: [Line-by-line interpretation]
+• Comparative Context: [Comparison to other works]
+• Translation Considerations: [Language nuances]
+• Aesthetic Elements: [Artistic achievement]
+
+**CONTEMPORARY RELEVANCE:**
+• Guidance for Muslims in the 21st Century: [Modern applications]
+• Addressing Current Global Challenges: [Contemporary issues]
+• Practical Wisdom for Personal Development: [Personal growth insights]
+• Relevance to Contemporary Issues in Muslim Societies: [Current relevance]
+• Universal Human Experiences: [Broader human themes]
+• Application for Educators, Students, and Spiritual Seekers: [Educational value]
+• Vital and Transformative Message: [Why it matters today]
+
+Provide scholarly depth but keep the entire response around 400-450 words. For each major heading (SUMMARY, THEMES, CONTEXT, ANALYSIS, RELEVANCE) include no more than 3–4 concise bullet points. Avoid overly long paragraphs.''',
+        temperature: 0.1,
+        maxTokens: 8000,
+      );
+      
+      debugPrint('✅ Gemini analysis successful');
+      return response;
+      
+    } catch (geminiError) {
+      debugPrint('⚠️ Gemini API failed: $geminiError');
+      
+      try {
+        debugPrint('🔄 Trying OpenRouter as fallback...');
+        final response = await OpenRouterService.getCompletion(
+          '''Analyze this poem by Allama Iqbal in detail:
+
+$poemText
+
+Provide comprehensive analysis covering summary, themes, historical context, literary analysis, and contemporary relevance.'''
+        );
+        
+        debugPrint('✅ OpenRouter analysis successful');
+        return response;
+        
+      } catch (openRouterError) {
+        debugPrint('⚠️ OpenRouter also failed: $openRouterError');
+        
+        // Return comprehensive offline fallback
+        return _createFallbackAnalysis(poemText, 'Connection Issue');
+      }
     }
   }
 
@@ -367,82 +494,28 @@ Contemporary Relevance:
 $relevance''';
   }
 
-  // Create fallback analysis content based on the poem text
+  // Simplified fallback analysis
   String _createFallbackAnalysis(String poemText, String errorContext) {
-    final analysisMap = _createFallbackAnalysisMap(poemText, errorContext);
-    return _formatPoemAnalysis(analysisMap);
-  }
+    return '''**SUMMARY:**
+This appears to be a meaningful piece of poetry by Allama Iqbal. While we're unable to provide a detailed AI analysis at this moment due to connectivity issues, this poem likely explores themes common to Iqbal's work such as spiritual awakening, self-realization (Khudi), and the relationship between the individual and the divine.
 
-  // Create fallback analysis as structured Map
-  Map<String, dynamic> _createFallbackAnalysisMap(String poemText, String errorContext) {
-    debugPrint('📝 Creating fallback analysis for poem');
+**THEMES:**
+• Self-realization and personal empowerment (Khudi)
+• Spiritual awakening and divine connection
+• Islamic identity and cultural renaissance
+• Individual responsibility and action
+• The relationship between humanity and God
 
-    // Count lines for basic metrics
-    final lines =
-        poemText.split('\n').where((line) => line.trim().isNotEmpty).toList();
-    final lineCount = lines.length;
+**HISTORICAL & CULTURAL CONTEXT:**
+Allama Iqbal (1877-1938) was a philosopher, poet, and political leader who played a key role in the Pakistan movement. His poetry was written during the decline of the Mughal Empire and the British colonial period, reflecting his vision for spiritual and intellectual revival of the Muslim community. This poem likely reflects his mature philosophical thinking developed between 1905-1938.
 
-    // Extract first line for reference
-    final firstLine = lines.isNotEmpty ? lines.first.trim() : 'Unknown';
+**LITERARY ANALYSIS:**
+Iqbal's poetry characteristically uses rich metaphors, symbolic language, and draws from both Islamic and Persian literary traditions. His work demonstrates mastery of classical forms while addressing modern concerns. The poem likely employs imagery from nature, Islamic history, or mystical concepts to convey deeper philosophical meanings.
 
-    // Identify potential themes by looking for common keywords
-    const themeKeywords = {
-      'divine': 'Divine connection',
-      'god': 'Relationship with God',
-      'khuda': 'Relationship with God',
-      'allah': 'Islamic spirituality',
-      'soul': 'Human soul',
-      'spirit': 'Spirituality',
-      'freedom': 'Freedom',
-      'liberty': 'Liberty',
-      'azadi': 'Freedom struggle',
-      'nation': 'Nationalism',
-      'islam': 'Islamic identity',
-      'muslim': 'Muslim identity',
-      'knowledge': 'Pursuit of knowledge',
-      'wisdom': 'Wisdom and enlightenment',
-      'self': 'Self-discovery',
-      'love': 'Love and devotion',
-      'youth': 'Youth empowerment',
-      'revolution': 'Revolutionary spirit',
-      'change': 'Social change',
-      'eagle': 'Freedom and strength (symbolism)',
-      'shaheen': 'Courage and ambition',
-    };
+**CONTEMPORARY RELEVANCE:**
+Iqbal's message of self-empowerment, spiritual growth, and individual responsibility remains highly relevant today. His emphasis on combining action with contemplation, and balancing material progress with spiritual development, offers guidance for contemporary readers seeking personal growth and meaningful engagement with their faith and community.
 
-    // Check for theme presence
-    final List<String> detectedThemes = [];
-    final lowerPoemText = poemText.toLowerCase();
-
-    themeKeywords.forEach((keyword, theme) {
-      if (lowerPoemText.contains(keyword.toLowerCase())) {
-        if (!detectedThemes.contains(theme)) {
-          detectedThemes.add(theme);
-        }
-      }
-    });
-
-    // If no themes detected, add default ones
-    if (detectedThemes.isEmpty) {
-      detectedThemes.add('Spirituality');
-      detectedThemes.add('Self-realization');
-      detectedThemes.add('Cultural identity');
-    }
-
-    // Limit to top 3 themes
-    final themes = detectedThemes.take(3).map((theme) => '• $theme').join('\n');
-
-    return {
-      'summary': '''This ${lineCount > 10 ? 'longer' : 'short'} poem begins with "$firstLine" and contains $lineCount verse${lineCount > 1 ? 's' : ''}. It exemplifies Iqbal's distinctive style of using poetic metaphors to convey philosophical ideas. The poem appears to explore themes typical in Iqbal's work, including spiritual awakening and social consciousness.''',
-      
-      'themes': themes,
-      
-      'context': '''This poem reflects Iqbal's philosophical outlook during the early 20th century when he was developing his ideas about self-realization (Khudi) and the revival of Islamic thought. Written during a time of political awakening in the Indian subcontinent, it captures the intellectual ferment of that era. Iqbal frequently addressed the spiritual and cultural identity of Muslims in his works.''',
-      
-      'analysis': '''The poem employs Iqbal's characteristic use of symbolic language and metaphors. His poetry often balances between Persian literary traditions and Urdu expressive forms, creating a unique poetic voice. The verses likely contain philosophical depth that reflects Iqbal's training in both Eastern and Western philosophical traditions. Note that this is an offline analysis - for more detailed insights, please try again with an internet connection.''',
-      
-      'relevance': '''Iqbal's poetry remains highly relevant today, particularly in addressing questions of identity, spiritual awakening, and social reform. His emphasis on self-empowerment and intellectual renewal continues to resonate with contemporary readers seeking personal and collective transformation. The themes explored in this poem speak to universal human experiences while maintaining cultural and spiritual authenticity.'''
-    };
+**Note:** This is a general analysis based on Iqbal's common themes. For a detailed, AI-powered analysis of this specific poem, please check your internet connection and try again.''';
   }
 
   Future<Map<String, dynamic>> analyzeWord(String word) async {
@@ -577,37 +650,16 @@ You MUST respond with ONLY a valid JSON object in this exact format, with no add
         // Continue to service approach
       }
 
-      // Fall back to regular service approach
-      final rawResult = await _textAnalysisService.analyzeWord(word);
-
-      // Create a fresh Map<String, dynamic> with explicit typing to ensure type safety
-      final Map<String, dynamic> result = <String, dynamic>{};
-
-      // Safely extract meaning map
-      result['meaning'] = <String, String>{};
-      if (rawResult['meaning'] is Map) {
-        result['meaning'] = {
-          'english':
-              rawResult['meaning']['english']?.toString() ?? 'Not available',
-          'urdu': rawResult['meaning']['urdu']?.toString() ?? 'Not available'
-        };
-      }
-
-      // Extract other fields with safe conversions
-      result['pronunciation'] =
-          rawResult['pronunciation']?.toString() ?? 'Not available';
-      result['partOfSpeech'] =
-          rawResult['partOfSpeech']?.toString() ?? 'Unknown';
-
-      // Handle examples list
-      if (rawResult['examples'] is List) {
-        result['examples'] =
-            (rawResult['examples'] as List).map((e) => e.toString()).toList();
-      } else {
-        result['examples'] = ['Example not available'];
-      }
-
-      return result;
+      // Return fallback if direct analysis fails
+      return {
+        'meaning': {
+          'english': 'Analysis failed',
+          'urdu': word,
+        },
+        'pronunciation': 'Not available',
+        'partOfSpeech': 'Not available',
+        'examples': ['Not available'],
+      };
     } catch (e) {
       debugPrint('❌ Word analysis error: $e');
       return {
@@ -731,84 +783,68 @@ You MUST respond with ONLY a valid JSON object in this exact format, with no add
       return;
     }
 
+    // Ask user for preferred language first
+    final BuildContext? context = Get.context;
+    if (context == null) return;
+
+    final String? chosenLang = await _chooseAnalysisLanguage(context);
+    
+    if (chosenLang == null) return; // user cancelled
+
     // Set loading state
     isAnalyzing.value = true;
 
-    // Check connection status
-    final connectivityResult = await Connectivity().checkConnectivity();
-    final bool isOffline = connectivityResult == ConnectivityResult.none;
-
-    if (isOffline) {
-      debugPrint('📡 No internet connection, will use offline analysis');
-      Get.snackbar(
-        'Offline Mode',
-        'Using offline analysis. Connect to internet for AI-powered results.',
-        snackPosition: SnackPosition.BOTTOM,
-        duration: const Duration(seconds: 3),
-      );
-    }
-
-    if (Get.context != null) {
-      try {
-        // Show a single bottom sheet with the analysis future
-        await AnalysisBottomSheet.show(
-          Get.context!,
-          'Poem Analysis',
-          _getAnalysisContent(poemText, isOffline),
-        );
-      } catch (e) {
-        debugPrint('❌ Error showing analysis: $e');
-        Get.snackbar(
-          'Analysis Error',
-          'Could not display analysis. Please try again.',
-          snackPosition: SnackPosition.BOTTOM,
-        );
-      } finally {
-        // Always reset the loading state
-        isAnalyzing.value = false;
+    // Create analysis future with improved error handling
+    Future<String> analysisFuture;
+    
+    try {
+      if (chosenLang == 'en') {
+        // For English, directly analyze without translation
+        analysisFuture = analyzePoemWithFallback(poemText);
+      } else {
+        // For Urdu, analyze in English first, then translate
+        analysisFuture = analyzePoemWithFallback(poemText).then((english) async {
+          try {
+            final urdu = await _translateText(english, true);
+            return urdu; // Return raw text for analysis
+          } catch (e) {
+            debugPrint('⚠️ Translation failed: $e');
+            return english; // fallback to English if translation fails
+          }
+        });
       }
-    } else {
-      isAnalyzing.value = false;
+    } catch (e) {
+      debugPrint('❌ Error creating analysis future: $e');
+      analysisFuture = Future.value(_createFallbackAnalysis(poemText, 'Analysis failed'));
     }
+
+    AnalysisBottomSheet.show(
+      context,
+      'Poem Analysis',
+      analysisFuture,
+    ).whenComplete(() => isAnalyzing.value = false);
   }
 
-  // Helper method that returns a Future<String> for the analysis content
-  Future<String> _getAnalysisContent(String poemText, bool isOffline) async {
+
+
+  Future<String> _translateText(String text, bool toUrdu) async {
+    final targetLang = toUrdu ? 'Urdu' : 'English';
+    final prompt =
+        'Translate the following poem analysis to $targetLang while preserving the section headings (e.g., "Summary:", "Themes:" etc.) in English and keeping bullet points format intact. Only provide the translated text without any additional commentary:\n\n$text';
+
     try {
-      debugPrint('🔍 Starting poem analysis...');
-
-      // Try direct Gemini API for online analysis
-      if (!isOffline) {
-        try {
-          final Map<String, dynamic> response =
-              await GeminiAPI.analyzePoemContent(poemText);
-          debugPrint('✅ Gemini response received successfully');
-
-          // Store structured analysis for UI display
-          poemAnalysisStructured.value = response;
-          
-          // Format the response for text display
-          final formattedResponse = _formatPoemAnalysis(response);
-          poemAnalysis.value = formattedResponse;
-          showAnalysis.value = true;
-          return formattedResponse;
-        } catch (apiError) {
-          debugPrint('⚠️ Gemini API error: $apiError');
-          // Continue to fallback
-        }
+      if (GeminiAPI.isConfigured) {
+        return await GeminiAPI.generateContent(
+          prompt: prompt,
+          temperature: 0.3,
+          maxTokens: 4000,
+        );
       }
-
-      // Fallback to local analysis
-      final fallbackAnalysisMap = _createFallbackAnalysisMap(poemText, isOffline ? 'Offline mode' : 'API error');
-      poemAnalysisStructured.value = fallbackAnalysisMap;
-      
-      final fallbackAnalysis = _formatPoemAnalysis(fallbackAnalysisMap);
-      poemAnalysis.value = fallbackAnalysis;
-      showAnalysis.value = true;
-      return fallbackAnalysis;
+      // Fallback
+      return await OpenRouterService.getCompletion(prompt);
     } catch (e) {
-      debugPrint('❌ Analysis completely failed: $e');
-      return 'Could not analyze poem: ${e.toString().substring(0, min(50, e.toString().length))}';
+      debugPrint('❌ Translation error: $e');
+      rethrow;
     }
   }
 
@@ -932,7 +968,8 @@ You MUST respond with ONLY a valid JSON object in this exact format, with no add
     try {
       return currentPoemNotes
           .firstWhere((note) => note.word == word && note.position == position);
-    } catch (e) {
+    } catch (generalError) {
+      debugPrint('Error getting note: $generalError');
       return null;
     }
   }
@@ -945,7 +982,7 @@ You MUST respond with ONLY a valid JSON object in this exact format, with no add
             note.word == word &&
             note.position == position,
       );
-    } catch (StateError) {
+    } on StateError {
       // No matching element found
       return null;
     } catch (e) {
@@ -993,5 +1030,92 @@ You MUST respond with ONLY a valid JSON object in this exact format, with no add
     } catch (e) {
       debugPrint('Error updating note: $e');
     }
+  }
+
+  // UI helper for language selection
+  Future<String?> _chooseAnalysisLanguage(BuildContext context) async {
+    if (!context.mounted) return null;
+    
+    final theme = Theme.of(context);
+    
+    return showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isDismissible: true,
+      builder: (ctx) {
+        if (!ctx.mounted) return const SizedBox.shrink();
+        return Container(
+          decoration: BoxDecoration(
+            color: theme.cardColor,
+            borderRadius: BorderRadius.circular(20.r),
+          ),
+          padding: EdgeInsets.symmetric(vertical: 24.h, horizontal: 16.w),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40.w,
+                height: 4.h,
+                margin: EdgeInsets.only(top: 12.h),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.3),
+                  borderRadius: BorderRadius.circular(2.r),
+                ),
+              ),
+              SizedBox(height: 16.h),
+              Text(
+                'Select Analysis Language',
+                style: theme.textTheme.titleMedium,
+              ),
+              SizedBox(height: 24.h),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  _buildLangChoice(ctx, 'English', Icons.language, 'en'),
+                  _buildLangChoice(ctx, 'اردو', Icons.translate, 'ur'),
+                ],
+              ),
+              SizedBox(height: 16.h),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildLangChoice(BuildContext context, String label, IconData icon, String value) {
+    final theme = Theme.of(context);
+    return GestureDetector(
+      onTap: () => Navigator.pop(context, value),
+      child: Container(
+        width: 120.w,
+        padding: EdgeInsets.symmetric(vertical: 16.h),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.primary.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(16.r),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, color: theme.colorScheme.primary, size: 28.h),
+            SizedBox(height: 8.h),
+            Text(label, style: theme.textTheme.bodyMedium),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Clean analysis text from unwanted characters
+  String _sanitizeAnalysisText(String input) {
+    var text = input
+        .replaceAll('**', '')
+        .replaceAll('__', '')
+        .replaceAll('##', '')
+        .replaceAll('^', '')
+        .replaceAll('```', '')
+        .trim();
+    // Remove multiple blank lines
+    text = text.replaceAll(RegExp(r'\n{3,}'), '\n\n');
+    return text;
   }
 }

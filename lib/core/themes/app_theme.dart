@@ -14,7 +14,7 @@ class AppTheme {
     appBarTheme: AppBarTheme(
       elevation: 0,
       centerTitle: true,
-      backgroundColor: AppColorSchemes.lightColorScheme.surfaceVariant,
+      backgroundColor: AppColorSchemes.lightColorScheme.surfaceContainerHighest,
       foregroundColor: AppColorSchemes.lightColorScheme.onSurface,
       surfaceTintColor: Colors.transparent,
       shadowColor: Colors.transparent,
@@ -30,29 +30,29 @@ class AppTheme {
       margin: AppDecorations.defaultCardMargin,
       color: AppColorSchemes.lightColorScheme.surface,
       surfaceTintColor: AppColorSchemes.lightColorScheme.surface,
-      shadowColor: Colors.black.withOpacity(0.1),
+      shadowColor: Colors.black.withValues(alpha: 0.1),
     ),
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: AppDecorations.elevatedButtonStyle.copyWith(
-        backgroundColor: MaterialStateProperty.all(AppColorSchemes.lightColorScheme.primary),
-        foregroundColor: MaterialStateProperty.all(AppColorSchemes.lightColorScheme.onPrimary),
-        textStyle: MaterialStateProperty.all(AppTextStyles.buttonText),
+        backgroundColor: WidgetStateProperty.all(AppColorSchemes.lightColorScheme.primary),
+        foregroundColor: WidgetStateProperty.all(AppColorSchemes.lightColorScheme.onPrimary),
+        textStyle: WidgetStateProperty.all(AppTextStyles.buttonText),
       ),
     ),
     outlinedButtonTheme: OutlinedButtonThemeData(
       style: AppDecorations.outlinedButtonStyle.copyWith(
-        foregroundColor: MaterialStateProperty.all(AppColorSchemes.lightColorScheme.primary),
-        side: MaterialStateProperty.all(BorderSide(
+        foregroundColor: WidgetStateProperty.all(AppColorSchemes.lightColorScheme.primary),
+        side: WidgetStateProperty.all(BorderSide(
           color: AppColorSchemes.lightColorScheme.outline,
           width: 1.5,
         )),
-        textStyle: MaterialStateProperty.all(AppTextStyles.buttonText),
+        textStyle: WidgetStateProperty.all(AppTextStyles.buttonText),
       ),
     ),
     textButtonTheme: TextButtonThemeData(
       style: AppDecorations.textButtonStyle.copyWith(
-        foregroundColor: MaterialStateProperty.all(AppColorSchemes.lightColorScheme.primary),
-        textStyle: MaterialStateProperty.all(AppTextStyles.buttonText),
+        foregroundColor: WidgetStateProperty.all(AppColorSchemes.lightColorScheme.primary),
+        textStyle: WidgetStateProperty.all(AppTextStyles.buttonText),
       ),
     ),
     snackBarTheme: SnackBarThemeData(
@@ -73,12 +73,12 @@ class AppTheme {
     ),
     navigationBarTheme: NavigationBarThemeData(
       backgroundColor: AppColorSchemes.lightColorScheme.surface,
-      indicatorColor: AppColorSchemes.lightColorScheme.primary.withOpacity(0.12),
+      indicatorColor: AppColorSchemes.lightColorScheme.primary.withValues(alpha: 0.12),
       indicatorShape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12.r),
       ),
-      labelTextStyle: MaterialStateProperty.resolveWith((states) {
-        if (states.contains(MaterialState.selected)) {
+      labelTextStyle: WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.selected)) {
           return AppTextStyles.textTheme.labelMedium?.copyWith(
             fontFamily: 'JameelNooriNastaleeq',
             color: AppColorSchemes.lightColorScheme.onSurface,
@@ -91,8 +91,8 @@ class AppTheme {
           fontWeight: FontWeight.w500,
         );
       }),
-      iconTheme: MaterialStateProperty.resolveWith((states) {
-        if (states.contains(MaterialState.selected)) {
+      iconTheme: WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.selected)) {
           return IconThemeData(
             color: AppColorSchemes.lightColorScheme.primary,
             size: 24.sp,
@@ -112,7 +112,7 @@ class AppTheme {
       elevation: 8,
       modalElevation: 16,
       showDragHandle: true,
-      dragHandleColor: AppColorSchemes.lightColorScheme.onSurfaceVariant.withOpacity(0.4),
+      dragHandleColor: AppColorSchemes.lightColorScheme.onSurfaceVariant.withValues(alpha: 0.4),
     ),
     dialogTheme: DialogThemeData(
       backgroundColor: AppColorSchemes.lightColorScheme.surface,
@@ -143,7 +143,7 @@ class AppTheme {
       bodyColor: AppColorSchemes.darkColorScheme.onSurface,
       displayColor: AppColorSchemes.darkColorScheme.onSurface,
     ),
-    scaffoldBackgroundColor: AppColorSchemes.darkColorScheme.background,
+    scaffoldBackgroundColor: AppColorSchemes.darkColorScheme.surface,
     appBarTheme: AppBarTheme(
       elevation: 0,
       centerTitle: true,
@@ -166,29 +166,29 @@ class AppTheme {
     ),
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: AppDecorations.elevatedButtonStyle.copyWith(
-        backgroundColor: MaterialStateProperty.all(AppColorSchemes.darkColorScheme.primary),
-        foregroundColor: MaterialStateProperty.all(AppColorSchemes.darkColorScheme.onPrimary),
-        textStyle: MaterialStateProperty.all(AppTextStyles.buttonText.copyWith(
+        backgroundColor: WidgetStateProperty.all(AppColorSchemes.darkColorScheme.primary),
+        foregroundColor: WidgetStateProperty.all(AppColorSchemes.darkColorScheme.onPrimary),
+        textStyle: WidgetStateProperty.all(AppTextStyles.buttonText.copyWith(
           color: AppColorSchemes.darkColorScheme.onPrimary,
         )),
       ),
     ),
     outlinedButtonTheme: OutlinedButtonThemeData(
       style: AppDecorations.outlinedButtonStyle.copyWith(
-        foregroundColor: MaterialStateProperty.all(AppColorSchemes.darkColorScheme.primary),
-        side: MaterialStateProperty.all(BorderSide(
+        foregroundColor: WidgetStateProperty.all(AppColorSchemes.darkColorScheme.primary),
+        side: WidgetStateProperty.all(BorderSide(
           color: AppColorSchemes.darkColorScheme.outline,
           width: 1.5,
         )),
-        textStyle: MaterialStateProperty.all(AppTextStyles.buttonText.copyWith(
+        textStyle: WidgetStateProperty.all(AppTextStyles.buttonText.copyWith(
           color: AppColorSchemes.darkColorScheme.primary,
         )),
       ),
     ),
     textButtonTheme: TextButtonThemeData(
       style: AppDecorations.textButtonStyle.copyWith(
-        foregroundColor: MaterialStateProperty.all(AppColorSchemes.darkColorScheme.primary),
-        textStyle: MaterialStateProperty.all(AppTextStyles.buttonText.copyWith(
+        foregroundColor: WidgetStateProperty.all(AppColorSchemes.darkColorScheme.primary),
+        textStyle: WidgetStateProperty.all(AppTextStyles.buttonText.copyWith(
           color: AppColorSchemes.darkColorScheme.primary,
         )),
       ),
@@ -211,12 +211,12 @@ class AppTheme {
     ),
     navigationBarTheme: NavigationBarThemeData(
       backgroundColor: AppColorSchemes.darkColorScheme.surface,
-      indicatorColor: AppColorSchemes.darkColorScheme.primary.withOpacity(0.2),
+      indicatorColor: AppColorSchemes.darkColorScheme.primary.withValues(alpha: 0.2),
       indicatorShape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12.r),
       ),
-      labelTextStyle: MaterialStateProperty.resolveWith((states) {
-        if (states.contains(MaterialState.selected)) {
+      labelTextStyle: WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.selected)) {
           return AppTextStyles.textTheme.labelMedium?.copyWith(
             fontFamily: 'JameelNooriNastaleeq',
             color: AppColorSchemes.darkColorScheme.onSurface,
@@ -229,8 +229,8 @@ class AppTheme {
           fontWeight: FontWeight.w500,
         );
       }),
-      iconTheme: MaterialStateProperty.resolveWith((states) {
-        if (states.contains(MaterialState.selected)) {
+      iconTheme: WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.selected)) {
           return IconThemeData(
             color: AppColorSchemes.darkColorScheme.primary,
             size: 24.sp,
@@ -250,7 +250,7 @@ class AppTheme {
       elevation: 8,
       modalElevation: 16,
       showDragHandle: true,
-      dragHandleColor: AppColorSchemes.darkColorScheme.onSurfaceVariant.withOpacity(0.4),
+      dragHandleColor: AppColorSchemes.darkColorScheme.onSurfaceVariant.withValues(alpha: 0.4),
     ),
     dialogTheme: DialogThemeData(
       backgroundColor: AppColorSchemes.darkColorScheme.surface,
@@ -281,7 +281,7 @@ class AppTheme {
       bodyColor: AppColorSchemes.sepiaColorScheme.onSurface,
       displayColor: AppColorSchemes.sepiaColorScheme.onSurface,
     ),
-    scaffoldBackgroundColor: AppColorSchemes.sepiaColorScheme.background,
+    scaffoldBackgroundColor: AppColorSchemes.sepiaColorScheme.surface,
     appBarTheme: AppBarTheme(
       elevation: 0,
       centerTitle: true,
@@ -300,34 +300,34 @@ class AppTheme {
       shape: AppDecorations.defaultCardShape,
       margin: AppDecorations.defaultCardMargin,
       color: AppColorSchemes.sepiaColorScheme.surface,
-      shadowColor: AppColorSchemes.sepiaColorScheme.primary.withOpacity(0.2),
+      shadowColor: AppColorSchemes.sepiaColorScheme.primary.withValues(alpha: 0.2),
       surfaceTintColor: AppColorSchemes.sepiaColorScheme.surface,
     ),
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: AppDecorations.elevatedButtonStyle.copyWith(
-        backgroundColor: MaterialStateProperty.all(AppColorSchemes.sepiaColorScheme.primary),
-        foregroundColor: MaterialStateProperty.all(AppColorSchemes.sepiaColorScheme.onPrimary),
-        textStyle: MaterialStateProperty.all(AppTextStyles.buttonText.copyWith(
+        backgroundColor: WidgetStateProperty.all(AppColorSchemes.sepiaColorScheme.primary),
+        foregroundColor: WidgetStateProperty.all(AppColorSchemes.sepiaColorScheme.onPrimary),
+        textStyle: WidgetStateProperty.all(AppTextStyles.buttonText.copyWith(
           color: AppColorSchemes.sepiaColorScheme.onPrimary,
         )),
       ),
     ),
     outlinedButtonTheme: OutlinedButtonThemeData(
       style: AppDecorations.outlinedButtonStyle.copyWith(
-        foregroundColor: MaterialStateProperty.all(AppColorSchemes.sepiaColorScheme.primary),
-        side: MaterialStateProperty.all(BorderSide(
+        foregroundColor: WidgetStateProperty.all(AppColorSchemes.sepiaColorScheme.primary),
+        side: WidgetStateProperty.all(BorderSide(
           color: AppColorSchemes.sepiaColorScheme.outline,
           width: 1.5,
         )),
-        textStyle: MaterialStateProperty.all(AppTextStyles.buttonText.copyWith(
+        textStyle: WidgetStateProperty.all(AppTextStyles.buttonText.copyWith(
           color: AppColorSchemes.sepiaColorScheme.primary,
         )),
       ),
     ),
     textButtonTheme: TextButtonThemeData(
       style: AppDecorations.textButtonStyle.copyWith(
-        foregroundColor: MaterialStateProperty.all(AppColorSchemes.sepiaColorScheme.primary),
-        textStyle: MaterialStateProperty.all(AppTextStyles.buttonText.copyWith(
+        foregroundColor: WidgetStateProperty.all(AppColorSchemes.sepiaColorScheme.primary),
+        textStyle: WidgetStateProperty.all(AppTextStyles.buttonText.copyWith(
           color: AppColorSchemes.sepiaColorScheme.primary,
         )),
       ),
@@ -350,12 +350,12 @@ class AppTheme {
     ),
     navigationBarTheme: NavigationBarThemeData(
       backgroundColor: AppColorSchemes.sepiaColorScheme.surface,
-      indicatorColor: AppColorSchemes.sepiaColorScheme.primary.withOpacity(0.15),
+      indicatorColor: AppColorSchemes.sepiaColorScheme.primary.withValues(alpha: 0.15),
       indicatorShape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12.r),
       ),
-      labelTextStyle: MaterialStateProperty.resolveWith((states) {
-        if (states.contains(MaterialState.selected)) {
+      labelTextStyle: WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.selected)) {
           return AppTextStyles.textTheme.labelMedium?.copyWith(
             fontFamily: 'JameelNooriNastaleeq',
             color: AppColorSchemes.sepiaColorScheme.onSurface,
@@ -368,8 +368,8 @@ class AppTheme {
           fontWeight: FontWeight.w500,
         );
       }),
-      iconTheme: MaterialStateProperty.resolveWith((states) {
-        if (states.contains(MaterialState.selected)) {
+      iconTheme: WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.selected)) {
           return IconThemeData(
             color: AppColorSchemes.sepiaColorScheme.primary,
             size: 24.sp,
@@ -389,7 +389,7 @@ class AppTheme {
       elevation: 8,
       modalElevation: 16,
       showDragHandle: true,
-      dragHandleColor: AppColorSchemes.sepiaColorScheme.onSurfaceVariant.withOpacity(0.4),
+      dragHandleColor: AppColorSchemes.sepiaColorScheme.onSurfaceVariant.withValues(alpha: 0.4),
     ),
     dialogTheme: DialogThemeData(
       backgroundColor: AppColorSchemes.sepiaColorScheme.surface,

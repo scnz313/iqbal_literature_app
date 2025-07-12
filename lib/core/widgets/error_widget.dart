@@ -208,7 +208,7 @@ class _CustomErrorWidgetState extends State<CustomErrorWidget>
     return Text(
       widget.message ?? defaultMessage,
       style: AppTextStyles.getBodyStyle(context).copyWith(
-        color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
       ),
       textAlign: TextAlign.center,
       maxLines: 3,
@@ -254,9 +254,9 @@ class CompactErrorWidget extends StatelessWidget {
     return Container(
       padding: AppDecorations.compactPadding,
       decoration: AppDecorations.roundedContainerDecoration(context).copyWith(
-        color: theme.colorScheme.errorContainer.withOpacity(0.1),
+        color: theme.colorScheme.errorContainer.withValues(alpha: 0.1),
         border: Border.all(
-          color: theme.colorScheme.error.withOpacity(0.2),
+          color: theme.colorScheme.error.withValues(alpha: 0.2),
           width: 1,
         ),
       ),
@@ -283,10 +283,10 @@ class CompactErrorWidget extends StatelessWidget {
             TextButton(
               onPressed: onRetry,
               style: AppDecorations.textButtonStyle.copyWith(
-                padding: MaterialStateProperty.all(
+                padding: WidgetStateProperty.all(
                   EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
                 ),
-                minimumSize: MaterialStateProperty.all(Size.zero),
+                minimumSize: WidgetStateProperty.all(Size.zero),
               ),
               child: Text(
                 'Retry',

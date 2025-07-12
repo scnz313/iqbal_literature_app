@@ -31,6 +31,7 @@ class Routes {
   static const String bookPoems = '/book-poems'; // Add this new route
   static const String favorites = '/favorites'; // Add this new route
   static const String timeline = '/timeline'; // Add this new route
+  static const String historicalContext = '/historical-context'; // Add historical context route for compatibility
   static const String splash = '/splash';
   static const String dailyVerse = '/daily-verse';
 }
@@ -92,6 +93,13 @@ class AppPages {
     ),
     GetPage(
       name: Routes.timeline,
+      page: () => const TimelineScreen(),
+      binding: HistoricalContextBinding(),
+      transition: Transition.rightToLeft,
+      transitionDuration: const Duration(milliseconds: 300),
+    ),
+    GetPage(
+      name: Routes.historicalContext,
       page: () => const TimelineScreen(),
       binding: HistoricalContextBinding(),
       transition: Transition.rightToLeft,

@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../../../core/themes/app_decorations.dart';
 import '../../../core/themes/text_styles.dart';
-import '../controllers/daily_verse_controller.dart';
 import 'daily_verse_card.dart';
 
 class DailyVerseBottomSheet extends StatelessWidget {
@@ -27,7 +25,7 @@ class DailyVerseBottomSheet extends StatelessWidget {
                   width: 40.w,
                   height: 4.h,
                   decoration: BoxDecoration(
-                    color: theme.colorScheme.onSurfaceVariant.withOpacity(0.4),
+                    color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
                     borderRadius: BorderRadius.circular(2.r),
                   ),
                 ),
@@ -93,7 +91,7 @@ class DailyVerseBottomSheet extends StatelessWidget {
           icon: const Icon(Icons.close),
           onPressed: () => Navigator.pop(context),
           style: IconButton.styleFrom(
-            backgroundColor: theme.colorScheme.surfaceVariant.withOpacity(0.5),
+            backgroundColor: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
             padding: EdgeInsets.all(8.w),
           ),
         ),

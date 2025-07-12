@@ -6,7 +6,7 @@ import 'package:flutter/foundation.dart';
 /// Service class for interacting with Google's Gemini API
 class GeminiAPI {
   static const String _baseUrl =
-      'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
+     'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
   static String? _apiKey;
 
   /// Configure the API key for Gemini

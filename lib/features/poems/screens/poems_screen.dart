@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
+
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:get/get.dart';
+import 'package:get/Get.dart';
 import '../controllers/poem_controller.dart';
 import '../../../features/poems/models/poem.dart';
-import '../../../services/api/gemini_api.dart';
+
 import '../../historical_context/widgets/historical_context_sheet.dart';
 import '../../../core/widgets/custom_app_bar.dart';
 import '../../../core/themes/text_styles.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/rendering.dart';
 
 class PoemsScreen extends StatefulWidget {
   const PoemsScreen({super.key});
@@ -19,6 +20,8 @@ class PoemsScreen extends StatefulWidget {
 
 class _PoemsScreenState extends State<PoemsScreen> {
   final PoemController controller = Get.find<PoemController>();
+  late ScrollController _scrollController;
+  bool _isFabVisible = true;
 
   int? _bookId;
   String? _bookName;
@@ -27,6 +30,8 @@ class _PoemsScreenState extends State<PoemsScreen> {
   @override
   void initState() {
     super.initState();
+    _scrollController = ScrollController();
+    
     final args = Get.arguments as Map<String, dynamic>?;
 
     if (args != null && args['book_id'] != null && args['view_type'] == 'book_specific') {
@@ -46,6 +51,12 @@ class _PoemsScreenState extends State<PoemsScreen> {
     });
   }
 
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
   Widget _buildErrorWidget(BuildContext context, String error) {
     final args = Get.arguments as Map<String, dynamic>?;
     final bookId = args?['book_id'];
@@ -61,7 +72,7 @@ class _PoemsScreenState extends State<PoemsScreen> {
               width: 120,
               height: 120,
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.error.withOpacity(0.1),
+                color: Theme.of(context).colorScheme.error.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(60),
               ),
               child: Icon(
@@ -89,7 +100,7 @@ class _PoemsScreenState extends State<PoemsScreen> {
               style: TextStyle(
                 fontFamily: 'JameelNooriNastaleeq',
                 fontSize: 16,
-                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                 height: 1.4,
               ),
               textDirection: TextDirection.rtl,
@@ -132,7 +143,7 @@ class _PoemsScreenState extends State<PoemsScreen> {
               width: 120,
               height: 120,
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(60),
               ),
               child: Icon(
@@ -160,7 +171,7 @@ class _PoemsScreenState extends State<PoemsScreen> {
               style: TextStyle(
                 fontFamily: 'JameelNooriNastaleeq',
                 fontSize: 16,
-                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                 height: 1.4,
               ),
               textDirection: TextDirection.rtl,
@@ -172,16 +183,37 @@ class _PoemsScreenState extends State<PoemsScreen> {
     );
   }
 
-  String _getTitle() {
-    final args = Get.arguments as Map<String, dynamic>?;
-    final viewType = args?['view_type'];
-    final bookName = args?['book_name'];
-
-    if (_isBookSpecific && _bookName != null) {
-      return _bookName!;
-    }
-    return 'all_poems'.tr;
+  Widget _buildRandomPoemFab(BuildContext context) {
+    return AnimatedSlide(
+      duration: const Duration(milliseconds: 300),
+      offset: _isFabVisible ? Offset.zero : const Offset(0, 2),
+      curve: Curves.easeInOut,
+      child: AnimatedOpacity(
+        duration: const Duration(milliseconds: 300),
+        opacity: _isFabVisible ? 1.0 : 0.0,
+        child: Container(
+          margin: EdgeInsets.only(bottom: 10.h, right: 4.w), // Extra margin to avoid text overlap
+          child: FloatingActionButton(
+            onPressed: () async {
+              HapticFeedback.lightImpact();
+              try {
+                await controller.openRandomPoem();
+              } catch (e) {
+                debugPrint('❌ Error opening random poem: $e');
+              }
+            },
+            backgroundColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.8),
+            foregroundColor: Colors.white,
+            elevation: 6,
+            tooltip: 'Random Poem',
+            child: const Icon(Icons.shuffle_rounded, size: 24),
+          ),
+        ),
+      ),
+    );
   }
+
+
 
   @override
   Widget build(BuildContext context) {
@@ -211,6 +243,8 @@ class _PoemsScreenState extends State<PoemsScreen> {
               }),
             )
           : null,
+      floatingActionButton: !_isBookSpecific ? _buildRandomPoemFab(context) : null,
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       body: Obx(() {
         if (controller.isLoading.value) {
           return const Center(
@@ -226,7 +260,19 @@ class _PoemsScreenState extends State<PoemsScreen> {
           return _buildEmptyState(context);
         }
 
-        return RefreshIndicator(
+        return NotificationListener<UserScrollNotification>(
+          onNotification: (notification) {
+            final ScrollDirection direction = notification.direction;
+            setState(() {
+              if (direction == ScrollDirection.reverse) {
+                _isFabVisible = false;
+              } else {
+                _isFabVisible = true;
+              }
+            });
+            return false;
+          },
+          child: RefreshIndicator(
           onRefresh: () async {
             if (_isBookSpecific && _bookId != null) {
               await controller.loadPoemsByBookId(_bookId);
@@ -235,6 +281,7 @@ class _PoemsScreenState extends State<PoemsScreen> {
             }
           },
           child: CustomScrollView(
+              controller: _scrollController,
             physics: const BouncingScrollPhysics(),
             slivers: [
               // Poems list
@@ -256,6 +303,7 @@ class _PoemsScreenState extends State<PoemsScreen> {
                 ),
               ),
             ],
+            ),
           ),
         );
       }),
@@ -273,262 +321,117 @@ class PoemCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isUrdu = poem.title.contains(RegExp(r'[\u0600-\u06FF]'));
+
     return GestureDetector(
-        onTap: () => Get.find<PoemController>().onPoemTap(poem),
-        onLongPress: () {
-          HapticFeedback.mediumImpact();
-          _showOptions(context);
-        },
-      child: TweenAnimationBuilder<double>(
-        duration: const Duration(milliseconds: 600),
-        tween: Tween(begin: 0.0, end: 1.0),
-        builder: (context, animationValue, child) {
-          return Transform.translate(
-            offset: Offset(0, 30 * (1 - animationValue)),
-            child: Opacity(
-              opacity: animationValue,
-              child: Container(
-                margin: EdgeInsets.symmetric(horizontal: 16.w, vertical: 4.h),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(20.r),
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      Theme.of(context).colorScheme.surface,
-                      Theme.of(context).colorScheme.surface.withOpacity(0.9),
-                    ],
-                  ),
-                  border: Border.all(
-                    color: Theme.of(context).colorScheme.outline.withOpacity(0.1),
-                    width: 1,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Theme.of(context).colorScheme.primary.withOpacity(0.08),
-                      blurRadius: 20,
-                      offset: const Offset(0, 8),
-                      spreadRadius: 0,
+      onTap: () => Get.find<PoemController>().onPoemTap(poem),
+      onLongPress: () {
+        HapticFeedback.mediumImpact();
+        _showOptions(context);
+      },
+      child: Container(
+        margin: EdgeInsets.symmetric(horizontal: 16.w, vertical: 4.h),
+        padding: EdgeInsets.all(16.w),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surface,
+          borderRadius: BorderRadius.circular(16.r),
+          border: Border.all(
+            color: theme.colorScheme.outline.withOpacity(0.1),
+            width: 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            // Simple poem icon
+            Container(
+              width: 48.w,
+              height: 48.w,
+              decoration: BoxDecoration(
+                color: theme.colorScheme.secondary.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12.r),
+              ),
+              child: Icon(
+                Icons.article_outlined,
+                color: theme.colorScheme.secondary,
+                size: 24.w,
+              ),
+            ),
+            SizedBox(width: 16.w),
+            
+            // Poem details
+            Expanded(
+              child: Column(
+                crossAxisAlignment: isUrdu ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                children: [
+                  // Title
+                  Text(
+                    poem.title,
+                    style: TextStyle(
+                      fontSize: 16.sp,
+                      fontWeight: FontWeight.w600,
+                      color: theme.colorScheme.onSurface,
+                      fontFamily: isUrdu ? 'JameelNooriNastaleeq' : null,
+                      height: isUrdu ? 1.8 : 1.4,
                     ),
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.04),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(20.r),
-                  child: Stack(
+                    textDirection: isUrdu ? TextDirection.rtl : TextDirection.ltr,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  SizedBox(height: 8.h),
+                  
+                  // Book info
+                  Row(
+                    mainAxisAlignment: isUrdu ? MainAxisAlignment.end : MainAxisAlignment.start,
                     children: [
-                      // Subtle pattern overlay
-                      Positioned.fill(
-                        child: Container(
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topRight,
-                              end: Alignment.bottomLeft,
-                              colors: [
-                                Theme.of(context).colorScheme.primary.withOpacity(0.02),
-                                Colors.transparent,
-                                Theme.of(context).colorScheme.secondary.withOpacity(0.01),
-                              ],
-                            ),
+                      Icon(
+                        Icons.book_outlined,
+                        size: 14.w,
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                      SizedBox(width: 4.w),
+                      Expanded(
+                        child: FutureBuilder<String>(
+                          future: Get.find<PoemController>().getBookName(poem.bookId),
+                          builder: (context, snapshot) {
+                            return Text(
+                              snapshot.data ?? 'Loading...',
+                              style: TextStyle(
+                                fontSize: 12.sp,
+                                color: theme.colorScheme.onSurfaceVariant,
+                                fontWeight: FontWeight.w500,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            );
+                          },
+                        ),
+                      ),
+                      // Year (if available)
+                      if (poem.year != null) ...[
+                        SizedBox(width: 8.w),
+                        Text(
+                          '• ${poem.year}',
+                          style: TextStyle(
+                            fontSize: 11.sp,
+                            color: theme.colorScheme.onSurfaceVariant,
                           ),
                         ),
-                      ),
-                      
-                      // Main content
-                      Padding(
-                        padding: EdgeInsets.all(16.w),
-                        child: Row(
-                          children: [
-                            // Enhanced poem icon
-                            _buildEnhancedPoemIcon(context),
-                            SizedBox(width: 20.w),
-                            
-                            // Poem details
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.end,
-                                children: [
-                                  // Title with gradient effect
-                                  _buildEnhancedTitle(context),
-                                  SizedBox(height: 12.h),
-                                  
-                                  // Book info with icon
-                                  _buildBookInfoChip(context),
-                                  SizedBox(height: 8.h),
-                                  
-                                  // Poem excerpt or metadata
-                                  _buildPoemExcerpt(context),
-                                ],
-                              ),
-                            ),
-                            SizedBox(width: 16.w),
-                            
-                            // Action arrow
-                            _buildActionButton(context),
-                          ],
-                        ),
-                      ),
+                      ],
                     ],
                   ),
-                ),
+                ],
               ),
             ),
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildEnhancedPoemIcon(BuildContext context) {
-    final theme = Theme.of(context);
-    return Container(
-      width: 48.w,
-      height: 48.w,
-      decoration: BoxDecoration(
-        color: theme.colorScheme.primary,
-        borderRadius: BorderRadius.circular(16.r),
-        boxShadow: [
-          BoxShadow(
-            color: theme.colorScheme.primary.withOpacity(0.25),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Icon(
-        Icons.menu_book_rounded,
-        color: Colors.white,
-        size: 24.w,
-      ),
-    );
-  }
-
-  Widget _buildEnhancedTitle(BuildContext context) {
-    final theme = Theme.of(context);
-    return ShaderMask(
-      shaderCallback: (bounds) => LinearGradient(
-        colors: [
-          theme.colorScheme.onSurface,
-          theme.colorScheme.onSurface.withOpacity(0.8),
-        ],
-      ).createShader(bounds),
-      child: Text(
-        poem.title,
-        style: TextStyle(
-          fontFamily: 'JameelNooriNastaleeq',
-          fontSize: 18.sp,
-          fontWeight: FontWeight.w700,
-          color: Colors.white,
-          height: 1.6,
-          letterSpacing: 0,
-        ),
-        textDirection: TextDirection.rtl,
-        textAlign: TextAlign.right,
-        maxLines: 2,
-        overflow: TextOverflow.ellipsis,
-      ),
-    );
-  }
-
-  Widget _buildBookInfoChip(BuildContext context) {
-    final theme = Theme.of(context);
-    return FutureBuilder<String>(
-      future: Get.find<PoemController>().getBookName(poem.bookId),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) {
-          return _buildShimmerBookChip(context);
-        }
-        
-        return Container(
-          padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
-          decoration: BoxDecoration(
-            color: theme.colorScheme.surfaceVariant,
-            borderRadius: BorderRadius.circular(20.r),
-            border: Border.all(
-              color: theme.colorScheme.outline.withOpacity(0.2),
-              width: 1,
+            
+            // Simple arrow
+            Icon(
+              Icons.chevron_right,
+              color: theme.colorScheme.onSurfaceVariant,
+              size: 20.w,
             ),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.auto_stories_outlined,
-                size: 14.w,
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-              SizedBox(width: 6.w),
-              Flexible(
-                child: Text(
-                  snapshot.data!,
-                  style: TextStyle(
-                    fontFamily: 'JameelNooriNastaleeq',
-                    fontSize: 12.sp,
-                    color: theme.colorScheme.onSurfaceVariant,
-                    fontWeight: FontWeight.w600,
-                  ),
-                  textDirection: TextDirection.rtl,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildShimmerBookChip(BuildContext context) {
-    final theme = Theme.of(context);
-    return Container(
-      width: 100.w,
-      height: 24.h,
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceVariant.withOpacity(0.3),
-        borderRadius: BorderRadius.circular(20.r),
-      ),
-    );
-  }
-
-  Widget _buildPoemExcerpt(BuildContext context) {
-    final theme = Theme.of(context);
-    return Text(
-      '',
-      style: TextStyle(
-        fontFamily: 'JameelNooriNastaleeq',
-        fontSize: 14.sp,
-        color: theme.colorScheme.onSurface.withOpacity(0.6),
-        height: 1.4,
-      ),
-      textDirection: TextDirection.rtl,
-      textAlign: TextAlign.right,
-      maxLines: 1,
-      overflow: TextOverflow.ellipsis,
-    );
-  }
-
-  Widget _buildActionButton(BuildContext context) {
-    final theme = Theme.of(context);
-    return Container(
-      width: 40.w,
-      height: 40.w,
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceVariant,
-        borderRadius: BorderRadius.circular(12.r),
-        border: Border.all(
-          color: theme.colorScheme.outline.withOpacity(0.2),
-          width: 1,
+          ],
         ),
-      ),
-      child: Icon(
-        Icons.arrow_forward_ios_rounded,
-        size: 16.w,
-        color: theme.colorScheme.onSurfaceVariant,
       ),
     );
   }
@@ -543,54 +446,81 @@ class PoemCard extends StatelessWidget {
       builder: (context) => Container(
         decoration: BoxDecoration(
           color: Theme.of(context).colorScheme.surface,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.1),
+              blurRadius: 20,
+              offset: const Offset(0, -5),
+            ),
+          ],
       ),
         child: SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-              // Handle bar
+              // Modern handle bar
               Container(
-                margin: const EdgeInsets.only(top: 12, bottom: 20),
-                width: 40,
-                height: 4,
+                margin: EdgeInsets.only(top: 12.h, bottom: 24.h),
+                width: 36.w,
+                height: 4.h,
                 decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.onSurface.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(2),
+                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.3),
+                  borderRadius: BorderRadius.circular(2.r),
                 ),
               ),
-              // Poem info header
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+              
+              // Poem info header with modern design
+              Container(
+                margin: EdgeInsets.symmetric(horizontal: 20.w),
+                padding: EdgeInsets.all(16.w),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(16.r),
+                  border: Border.all(
+                    color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
+                    width: 1,
+                  ),
+                ),
                 child: Row(
                   children: [
                     Container(
-                      width: 48,
-                      height: 48,
+                      width: 52.w,
+                      height: 52.w,
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                           colors: [
-                            Theme.of(context).colorScheme.secondary,
-                            Theme.of(context).colorScheme.secondary.withOpacity(0.8),
+                            Theme.of(context).colorScheme.primary,
+                            Theme.of(context).colorScheme.primary.withValues(alpha: 0.8),
                           ],
                         ),
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(14.r),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
                       ),
                       child: Icon(
-                        Icons.auto_stories,
-                        color: Theme.of(context).colorScheme.onSecondary,
-                        size: 24,
+                        Icons.auto_stories_rounded,
+                        color: Colors.white,
+                        size: 26.w,
                       ),
                     ),
-                    const SizedBox(width: 12),
+                    SizedBox(width: 16.w),
                     Expanded(
-                      child: Text(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text(
                         poem.title,
                         style: TextStyle(
                           fontFamily: 'JameelNooriNastaleeq',
-                          fontSize: 16,
+                              fontSize: 18.sp,
                           fontWeight: FontWeight.w600,
                           color: Theme.of(context).colorScheme.onSurface,
                           height: 1.4,
@@ -599,62 +529,94 @@ class PoemCard extends StatelessWidget {
                         textAlign: TextAlign.right,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
+                          ),
+                          SizedBox(height: 4.h),
+                          FutureBuilder<String>(
+                            future: Get.find<PoemController>().getBookName(poem.bookId),
+                            builder: (context, snapshot) {
+                              return Text(
+                                snapshot.data ?? '',
+                                style: TextStyle(
+                                  fontFamily: 'JameelNooriNastaleeq',
+                                  fontSize: 14.sp,
+                                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+                                  height: 1.3,
+                                ),
+                                textDirection: TextDirection.rtl,
+                                textAlign: TextAlign.right,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              );
+                            },
+                          ),
+                        ],
                       ),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(height: 8),
-              // Options
-              _buildOptionTile(
+              
+              SizedBox(height: 24.h),
+              
+              // Modern option tiles
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: 20.w),
+                child: Column(
+                  children: [
+                    _buildModernOptionTile(
                 context,
-                Icons.history_edu_outlined,
-                'Historical Context',
-                'تاریخی پس منظر',
-                'Explore the historical background',
-                () {
+                      icon: Icons.timeline_rounded,
+                      urduTitle: 'تاریخی پس منظر',
+                      englishTitle: 'Historical Context',
+                      urduSubtitle: 'اس نظم کا تاریخی پس منظر دیکھیں',
+                      englishSubtitle: 'Explore the historical background',
+                      onTap: () {
                 Navigator.pop(context);
                 _showHistoricalContext(context);
               },
             ),
+                    
+                    SizedBox(height: 8.h),
+                    
               Obx(() {
                 final controller = Get.find<PoemController>();
-                return _buildOptionTile(
+                      final isFavorite = controller.isFavorite(poem);
+                      return _buildModernOptionTile(
                   context,
-                  controller.isFavorite(poem)
-                      ? Icons.favorite
-                      : Icons.favorite_outline,
-                  controller.isFavorite(poem)
-                      ? 'Remove from Favorites'
-                      : 'Add to Favorites',
-                  controller.isFavorite(poem)
-                      ? 'پسندیدگی سے ہٹائیں'
-                      : 'پسندیدگی میں شامل کریں',
-                  controller.isFavorite(poem)
-                      ? 'Remove from your favorites'
-                      : 'Save to your favorites',
-                  () {
+                        icon: isFavorite ? Icons.favorite_rounded : Icons.favorite_outline_rounded,
+                        urduTitle: isFavorite ? 'پسندیدگی سے ہٹائیں' : 'پسندیدہ میں شامل کریں',
+                        englishTitle: isFavorite ? 'Remove from Favorites' : 'Add to Favorites',
+                        urduSubtitle: isFavorite ? 'اپنی پسندیدگی سے نظم ہٹائیں' : 'اپنی پسندیدگی میں محفوظ کریں',
+                        englishSubtitle: isFavorite ? 'Remove from your favorites' : 'Save to your favorites',
+                        iconColor: isFavorite ? Colors.red : null,
+                        onTap: () {
                     controller.toggleFavorite(poem);
                     Navigator.pop(context);
                   },
-                  iconColor: controller.isFavorite(poem) ? Colors.red : null,
                 );
               }),
-              _buildOptionTile(
+                    
+                    SizedBox(height: 8.h),
+                    
+                    _buildModernOptionTile(
                 context,
-                Icons.share_outlined,
-                'Share',
-                'شیئر کریں',
-                'Share this poem with others',
-                () {
+                      icon: Icons.share_rounded,
+                      urduTitle: 'شیئر کریں',
+                      englishTitle: 'Share Poem',
+                      urduSubtitle: 'دوسروں کے ساتھ اس نظم کو شیئر کریں',
+                      englishSubtitle: 'Share this poem with others',
+                      onTap: () {
                 Navigator.pop(context);
-                  // Give the sheet time to close before opening share sheet
                   Future.delayed(const Duration(milliseconds: 200), () {
                     Get.find<PoemController>().sharePoem(poem);
                   });
                 },
               ),
-              SizedBox(height: MediaQuery.of(context).padding.bottom + 20),
+                  ],
+                ),
+              ),
+              
+              SizedBox(height: MediaQuery.of(context).padding.bottom + 24.h),
             ],
           ),
         ),
@@ -662,72 +624,93 @@ class PoemCard extends StatelessWidget {
     );
   }
 
-  Widget _buildOptionTile(
-    BuildContext context,
-    IconData icon,
-    String title,
-    String urduTitle,
-    String subtitle,
-    VoidCallback onTap, {
+  Widget _buildModernOptionTile(
+    BuildContext context, {
+    required IconData icon,
+    required String urduTitle,
+    required String englishTitle,
+    required String urduSubtitle,
+    required String englishSubtitle,
+    required VoidCallback onTap,
     Color? iconColor,
   }) {
-    return InkWell(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-        child: Row(
-          children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: (iconColor ?? Theme.of(context).colorScheme.primary)
-                    .withOpacity(0.1),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Icon(
-                icon,
-                color: iconColor ?? Theme.of(context).colorScheme.primary,
-                size: 20,
-              ),
+    final theme = Theme.of(context);
+    final effectiveIconColor = iconColor ?? theme.colorScheme.primary;
+    
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16.r),
+        child: Container(
+          padding: EdgeInsets.all(16.w),
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surface,
+            borderRadius: BorderRadius.circular(16.r),
+            border: Border.all(
+              color: theme.colorScheme.outline.withValues(alpha: 0.08),
+              width: 1,
             ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    urduTitle,
-                    style: TextStyle(
-                      fontFamily: 'JameelNooriNastaleeq',
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
-                      color: Theme.of(context).colorScheme.onSurface,
-                      height: 1.3,
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 44.w,
+                height: 44.w,
+                decoration: BoxDecoration(
+                  color: effectiveIconColor.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(12.r),
+                ),
+                child: Icon(
+                  icon,
+                  color: effectiveIconColor,
+                  size: 22.w,
+                ),
+              ),
+              SizedBox(width: 16.w),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      englishTitle,
+                      style: TextStyle(
+                        fontSize: 16.sp,
+                        fontWeight: FontWeight.w600,
+                        color: theme.colorScheme.onSurface,
+                        height: 1.3,
+                      ),
+                      textAlign: TextAlign.right,
                     ),
-                    textDirection: TextDirection.rtl,
-                  ),
-                  Text(
-                    subtitle,
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
-                      height: 1.2,
+                    SizedBox(height: 4.h),
+                    Text(
+                      urduSubtitle,
+                      style: TextStyle(
+                        fontFamily: 'JameelNooriNastaleeq',
+                        fontSize: 13.sp,
+                        color: theme.colorScheme.onSurface.withValues(alpha: 0.65),
+                        height: 1.4,
+                      ),
+                      textDirection: TextDirection.rtl,
+                      textAlign: TextAlign.right,
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-            Icon(
-              Icons.arrow_forward_ios,
-              size: 16,
-              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.4),
-            ),
-          ],
+              SizedBox(width: 12.w),
+              Icon(
+                Icons.arrow_forward_ios_rounded,
+                size: 16.w,
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.3),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
+
+
 
   void _showHistoricalContext(BuildContext context) {
     debugPrint('📖 Requesting historical context for: ${poem.title}');

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:get/get.dart';
+
 
 class ResponsiveUtil {
   // Standard design size for mobile (iPhone 13/14 size)
@@ -10,6 +10,29 @@ class ResponsiveUtil {
   // Tablet breakpoint
   static const double tabletBreakpoint = 600;
   static const double largeTabletBreakpoint = 900;
+
+  /// Check if ScreenUtil is properly initialized
+  static bool get isScreenUtilInitialized {
+    try {
+      final testValue = 1.0.sp;
+      return testValue.isFinite && !testValue.isNaN;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /// Safe ScreenUtil method with fallback
+  static double _safeScreenUtil(double Function() screenUtilMethod, double fallback) {
+    if (!isScreenUtilInitialized) {
+      return fallback;
+    }
+    try {
+      final result = screenUtilMethod();
+      return result.isFinite && !result.isNaN ? result : fallback;
+    } catch (e) {
+      return fallback;
+    }
+  }
 
   /// Check if the current device is a tablet
   static bool isTablet(BuildContext context) {
@@ -25,28 +48,28 @@ class ResponsiveUtil {
 
   /// Get the appropriate font size based on screen type
   static double getFontSize(double size) {
-    // Use ScreenUtil to scale font sizes properly
-    return size.sp;
+    // Use ScreenUtil to scale font sizes properly with safety check
+    return _safeScreenUtil(() => size.sp, size);
   }
 
   /// Get appropriate width based on screen type
   static double getWidth(double width) {
-    return width.w;
+    return _safeScreenUtil(() => width.w, width);
   }
 
   /// Get appropriate height based on screen type
   static double getHeight(double height) {
-    return height.h;
+    return _safeScreenUtil(() => height.h, height);
   }
 
   /// Get appropriate padding/margin based on screen type
   static EdgeInsets getPadding(
       {double left = 0, double top = 0, double right = 0, double bottom = 0}) {
     return EdgeInsets.only(
-      left: left.w,
-      top: top.h,
-      right: right.w,
-      bottom: bottom.h,
+      left: _safeScreenUtil(() => left.w, left),
+      top: _safeScreenUtil(() => top.h, top),
+      right: _safeScreenUtil(() => right.w, right),
+      bottom: _safeScreenUtil(() => bottom.h, bottom),
     );
   }
 
@@ -56,19 +79,19 @@ class ResponsiveUtil {
     double vertical = 0,
   }) {
     return EdgeInsets.symmetric(
-      horizontal: horizontal.w,
-      vertical: vertical.h,
+      horizontal: _safeScreenUtil(() => horizontal.w, horizontal),
+      vertical: _safeScreenUtil(() => vertical.h, vertical),
     );
   }
 
   /// Get all-sides padding/margin based on screen type
   static EdgeInsets getAllPadding(double padding) {
-    return EdgeInsets.all(padding.r);
+    return EdgeInsets.all(_safeScreenUtil(() => padding.r, padding));
   }
 
   /// Get responsive radius for shapes
   static BorderRadius getBorderRadius(double radius) {
-    return BorderRadius.circular(radius.r);
+    return BorderRadius.circular(_safeScreenUtil(() => radius.r, radius));
   }
 
   /// Get appropriate scaling factor for icons and other elements

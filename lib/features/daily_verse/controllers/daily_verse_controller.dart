@@ -7,7 +7,6 @@ import '../../../data/models/daily_verse/daily_verse.dart';
 import '../../../services/api/gemini_api.dart';
 import '../../../data/repositories/book_repository.dart';
 import '../../../data/repositories/poem_repository.dart';
-import 'package:sqflite/sqflite.dart';
 import 'dart:math';
 
 class DailyVerseController extends GetxController {
@@ -92,7 +91,7 @@ class DailyVerseController extends GetxController {
       isGeneratingInsights.value = true;
       generationSource.value = "Generating from local poems...";
       
-      // Get all poems from local database
+      // Get all poems from repository (Firebase cache)
       final poems = await _poemRepository.getAllPoems();
       final books = await _bookRepository.getAllBooks();
       
@@ -403,13 +402,6 @@ Format your response with these exact numbered sections.
   void shareVerse() {
     if (currentVerse.value != null) {
       final verse = currentVerse.value!;
-      final shareText = '''
-${verse.originalText}
-${verse.translation}
-From: ${verse.bookSource}
-Theme: ${verse.theme}
-${verse.aiInsights?['explanation'] ?? ''}
-''';
       // Implement sharing functionality
       // You can use the share_plus package or platform-specific sharing
     }

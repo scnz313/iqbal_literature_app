@@ -52,8 +52,7 @@ class InitService extends GetxService {
       final deepseekClient = DeepSeekApiClient();
       Get.put<DeepSeekApiClient>(deepseekClient, permanent: true);
 
-      final textAnalysisService =
-          TextAnalysisService(deepseekClient, analysisCacheService);
+      final textAnalysisService = TextAnalysisService();
       Get.put<TextAnalysisService>(textAnalysisService, permanent: true);
 
       // 3. Core Services
@@ -75,7 +74,6 @@ class InitService extends GetxService {
         final controller = PoemController(
           Get.find<PoemRepository>(),
           Get.find<AnalyticsService>(),
-          Get.find<TextAnalysisService>(),
         );
         return controller;
       }, permanent: true);
@@ -132,16 +130,11 @@ class InitService extends GetxService {
       Get.lazyPut(() => SearchService(firestore));
       Get.lazyPut(() => SearchController(Get.find<SearchService>()));
 
-      // Additional initialization can go here
-      await _initializeDatabase();
+      // Initialization complete
+      debugPrint('✅ InitService: All services initialized successfully');
     } catch (e) {
       debugPrint('Initialization error: $e');
       rethrow;
     }
-  }
-
-  Future<void> _initializeDatabase() async {
-    // Database initialization code here
-    // ...existing code...
   }
 }

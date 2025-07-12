@@ -69,10 +69,10 @@ android {
 
     defaultConfig {
         applicationId "com.iqbalbook.iqbal_literature"
-        minSdkVersion 23
+        minSdkVersion 26
         targetSdkVersion flutter.targetSdkVersion
-        versionCode 22
-        versionName "1.1.0"
+        versionCode 26
+        versionName "2.6.0"
         multiDexEnabled true
         manifestPlaceholders = [
             excludeAdIdPermission: "true",
@@ -98,31 +98,14 @@ android {
         }
     }
 
-    // Fix for Flutter APK location issue
-    afterEvaluate {
-        tasks.named("assembleDebug") {
-            doLast {
-                copy {
-                    from "${buildDir}/outputs/apk/debug"
-                    into "${buildDir}/outputs/flutter-apk"
-                    include "*.apk"
-                }
-                // Create a single-ABI fat APK that Flutter can find
-                copy {
-                    from "${buildDir}/outputs/apk/debug/app-arm64-v8a-debug.apk"
-                    into "${buildDir}/outputs/flutter-apk"
-                    rename "app-arm64-v8a-debug.apk", "app-debug.apk"
-                }
-            }
-        }
-    }
+
 
     splits {
         abi {
             enable true
             reset()
-            include 'x86', 'x86_64', 'armeabi-v7a', 'arm64-v8a'
-            universalApk true
+            include 'armeabi-v7a', 'arm64-v8a'
+            universalApk true  // Enable universal APK for development
         }
     }
 

@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../../config/routes/app_routes.dart';
 import '../../../data/repositories/poem_repository.dart';
 import '../../../features/poems/models/poem.dart';
+import '../../onboarding/welcome_kit.dart';
 
 class SplashController extends GetxController {
   final PoemRepository? _poemRepository;
@@ -168,13 +169,27 @@ class SplashController extends GetxController {
     _navigateToHome();
   }
 
-  void _navigateToHome() {
+  Future<void> _navigateToHome() async {
     if (isReadyToNavigate.value) {
-      // Cancel any pending timers
       _splashTimer?.cancel();
       _progressTimer?.cancel();
 
-      // Navigate to home
+      final prefs = await SharedPreferences.getInstance();
+      final hasSeen = prefs.getBool('hasSeenWelcomeKit') ?? false;
+
+      if (!hasSeen) {
+        // Show welcome kit and wait for it to be dismissed
+        await Get.bottomSheet(
+          const WelcomeKit(), 
+          isScrollControlled: true,
+          isDismissible: true,
+          enableDrag: true,
+        );
+        // Mark as seen after the bottom sheet is dismissed
+        await prefs.setBool('hasSeenWelcomeKit', true);
+      }
+
+      // Navigate to home screen
       Get.offAllNamed(Routes.home);
     }
   }

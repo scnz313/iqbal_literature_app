@@ -3,98 +3,49 @@ import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../widgets/search_result.dart';
 import 'package:get/get.dart';
-import '../../../core/themes/app_decorations.dart';
-import '../../../core/themes/text_styles.dart';
+import '../../../data/repositories/poem_repository.dart';
 
-class SearchResultTile extends StatefulWidget {
+
+class SearchResultTile extends StatelessWidget {
   final SearchResult result;
 
   const SearchResultTile({Key? key, required this.result}) : super(key: key);
 
   @override
-  State<SearchResultTile> createState() => _SearchResultTileState();
-}
-
-class _SearchResultTileState extends State<SearchResultTile>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _animationController;
-  late Animation<double> _scaleAnimation;
-  late Animation<double> _fadeAnimation;
-  bool _isPressed = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _animationController = AnimationController(
-      duration: AppDecorations.fastAnimation,
-      vsync: this,
-    );
-    _scaleAnimation = Tween<double>(
-      begin: 1.0,
-      end: 0.95,
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: Curves.easeInOut,
-    ));
-    _fadeAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: Curves.easeInOut,
-    ));
-    _animationController.forward();
-  }
-
-  @override
-  void dispose() {
-    _animationController.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isUrdu = widget.result.title.contains(RegExp(r'[\u0600-\u06FF]'));
-    final isUrduSubtitle = widget.result.subtitle.contains(RegExp(r'[\u0600-\u06FF]'));
+    // Since app is 100% Urdu, always treat as Urdu content
+    const isUrdu = true;
+    const isUrduSubtitle = true;
 
-    return FadeTransition(
-      opacity: _fadeAnimation,
-      child: ScaleTransition(
-        scale: _scaleAnimation,
-        child: GestureDetector(
-          onTapDown: (_) => _onTapDown(),
-          onTapUp: (_) => _onTapUp(),
-          onTapCancel: () => _onTapUp(),
+    return Container(
+      margin: EdgeInsets.only(bottom: 12.h),
+      decoration: BoxDecoration(
+        color: theme.cardColor,
+        borderRadius: BorderRadius.circular(16.r),
+        border: Border.all(
+          color: theme.dividerColor.withOpacity(0.1),
+          width: 1,
+        ),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16.r),
           onTap: () => _navigateToDetails(),
-          onLongPress: () => _showOptions(context),
-          child: AnimatedContainer(
-            duration: AppDecorations.fastAnimation,
-            margin: AppDecorations.defaultCardMargin,
-            decoration: AppDecorations.cardDecoration(context).copyWith(
-              boxShadow: _isPressed ? [] : AppDecorations.cardDecoration(context).boxShadow,
-            ),
-            child: Material(
-              color: Colors.transparent,
-              child: InkWell(
-                borderRadius: BorderRadius.circular(16.r),
-                onTap: () => _navigateToDetails(),
-                child: Padding(
-                  padding: AppDecorations.defaultPadding,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildHeader(context, theme, isUrdu),
-                      if (widget.result.subtitle.isNotEmpty) ...[
-                        SizedBox(height: 12.h),
-                        _buildContent(context, theme, isUrduSubtitle),
-                      ],
-                      SizedBox(height: 12.h),
-                      _buildFooter(context, theme),
-                    ],
-                  ),
-                ),
-              ),
+          child: Padding(
+            padding: EdgeInsets.all(16.w),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.end, // Align to right for Urdu
+              children: [
+                _buildHeader(context, theme, isUrdu),
+                if (result.subtitle.isNotEmpty) ...[
+                  SizedBox(height: 12.h),
+                  _buildContent(context, theme, isUrduSubtitle),
+                ],
+                SizedBox(height: 12.h),
+                _buildFooter(context, theme),
+              ],
             ),
           ),
         ),
@@ -105,24 +56,26 @@ class _SearchResultTileState extends State<SearchResultTile>
   Widget _buildHeader(BuildContext context, ThemeData theme, bool isUrdu) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
-      textDirection: isUrdu ? TextDirection.rtl : TextDirection.ltr,
+      textDirection: TextDirection.rtl, // Always RTL for Urdu
       children: [
-        _buildTypeIcon(theme),
-        SizedBox(width: 12.w),
         Expanded(
           child: Text(
-            widget.result.title,
-            style: AppTextStyles.getTitleStyle(
-              context,
-              isUrdu: isUrdu,
-              isLarge: true,
+            result.title,
+            style: TextStyle(
+              fontSize: 18.sp,
+              fontWeight: FontWeight.w600,
+              fontFamily: 'JameelNooriNastaleeq',
+              color: theme.textTheme.titleLarge?.color,
+              height: 1.6,
             ),
-            textDirection: isUrdu ? TextDirection.rtl : TextDirection.ltr,
+            textDirection: TextDirection.rtl,
+            textAlign: TextAlign.right,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
           ),
         ),
-        _buildSearchIcon(context, theme),
+        SizedBox(width: 12.w),
+        _buildTypeIcon(theme),
       ],
     );
   }
@@ -131,24 +84,27 @@ class _SearchResultTileState extends State<SearchResultTile>
     IconData iconData;
     Color iconColor;
 
-    switch (widget.result.type) {
+    switch (result.type) {
       case SearchResultType.book:
-        iconData = Icons.book_outlined;
+        iconData = Icons.book_rounded;
         iconColor = theme.colorScheme.primary;
         break;
       case SearchResultType.poem:
-        iconData = Icons.article_outlined;
+        iconData = Icons.article_rounded;
         iconColor = theme.colorScheme.secondary;
         break;
       case SearchResultType.line:
-        iconData = Icons.format_quote_outlined;
+        iconData = Icons.format_quote_rounded;
         iconColor = theme.colorScheme.tertiary;
         break;
     }
 
     return Container(
       padding: EdgeInsets.all(8.w),
-      decoration: AppDecorations.iconContainerDecoration(context, iconColor),
+      decoration: BoxDecoration(
+        color: iconColor.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8.r),
+      ),
       child: Icon(
         iconData,
         color: iconColor,
@@ -157,78 +113,82 @@ class _SearchResultTileState extends State<SearchResultTile>
     );
   }
 
-  Widget _buildSearchIcon(BuildContext context, ThemeData theme) {
-    return Container(
-      padding: EdgeInsets.all(6.w),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceVariant.withOpacity(0.5),
-        borderRadius: BorderRadius.circular(8.r),
-      ),
-      child: Icon(
-        Icons.search_rounded,
-        size: 16.w,
-        color: theme.colorScheme.onSurfaceVariant,
-      ),
-    );
-  }
-
   Widget _buildContent(BuildContext context, ThemeData theme, bool isUrdu) {
     return Container(
+      width: double.infinity,
       padding: EdgeInsets.all(12.w),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceVariant.withOpacity(0.3),
+        color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.3),
         borderRadius: BorderRadius.circular(12.r),
-        border: Border.all(
-          color: theme.colorScheme.outline.withOpacity(0.1),
-          width: 1,
-        ),
       ),
       child: Text(
-        widget.result.subtitle,
-        style: AppTextStyles.getBodyStyle(context).copyWith(
-          fontFamily: isUrdu ? 'JameelNooriNastaleeq' : null,
-          fontSize: isUrdu ? 16.sp : 14.sp,
-          height: isUrdu ? 1.8 : 1.5,
+        result.subtitle,
+        style: TextStyle(
+          fontFamily: 'JameelNooriNastaleeq',
+          fontSize: 16.sp,
+          height: 1.8,
+          color: theme.textTheme.bodyMedium?.color,
         ),
         maxLines: 4,
         overflow: TextOverflow.ellipsis,
-        textDirection: isUrdu ? TextDirection.rtl : TextDirection.ltr,
-        textAlign: isUrdu ? TextAlign.right : TextAlign.left,
+        textDirection: TextDirection.rtl,
+        textAlign: TextAlign.right,
       ),
     );
   }
 
   Widget _buildFooter(BuildContext context, ThemeData theme) {
     return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      textDirection: TextDirection.rtl,
       children: [
-        _buildActionChip(
-          context,
-          icon: Icons.visibility_rounded,
-          label: 'View',
-          onTap: () => _navigateToDetails(),
-        ),
-        const Spacer(),
+        _buildActionButton(context, theme),
         _buildTypeChip(context, theme),
       ],
     );
   }
 
-  Widget _buildActionChip(
-    BuildContext context, {
-    required IconData icon,
-    required String label,
-    required VoidCallback onTap,
-  }) {
-    final theme = Theme.of(context);
-    
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(16.r),
+  Widget _buildTypeChip(BuildContext context, ThemeData theme) {
+    String label;
+    switch (result.type) {
+      case SearchResultType.book:
+        label = 'کتاب';
+        break;
+      case SearchResultType.poem:
+        label = 'نظم';
+        break;
+      case SearchResultType.line:
+        label = 'شعر';
+        break;
+    }
+
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
+        borderRadius: BorderRadius.circular(12.r),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 12.sp,
+          color: theme.colorScheme.onSurfaceVariant,
+          fontWeight: FontWeight.w500,
+          fontFamily: 'JameelNooriNastaleeq',
+        ),
+        textDirection: TextDirection.rtl,
+      ),
+    );
+  }
+
+  Widget _buildActionButton(BuildContext context, ThemeData theme) {
+    return GestureDetector(
+      onTap: () => _navigateToDetails(),
       child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
+        padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
         decoration: BoxDecoration(
           color: theme.colorScheme.primary.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(16.r),
+          borderRadius: BorderRadius.circular(12.r),
           border: Border.all(
             color: theme.colorScheme.primary.withOpacity(0.2),
             width: 1,
@@ -236,19 +196,22 @@ class _SearchResultTileState extends State<SearchResultTile>
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
+          textDirection: TextDirection.rtl,
           children: [
-            Icon(
-              icon,
-              size: 14.w,
-              color: theme.colorScheme.primary,
-            ),
-            SizedBox(width: 4.w),
             Text(
-              label,
-              style: AppTextStyles.textTheme.labelSmall?.copyWith(
+              'دیکھیں',
+              style: TextStyle(
+                fontSize: 12.sp,
                 color: theme.colorScheme.primary,
                 fontWeight: FontWeight.w600,
+                fontFamily: 'JameelNooriNastaleeq',
               ),
+            ),
+            SizedBox(width: 4.w),
+            Icon(
+              Icons.arrow_back_rounded, // Use back arrow for RTL
+              size: 14.w,
+              color: theme.colorScheme.primary,
             ),
           ],
         ),
@@ -256,163 +219,87 @@ class _SearchResultTileState extends State<SearchResultTile>
     );
   }
 
-  Widget _buildTypeChip(BuildContext context, ThemeData theme) {
-    String label;
-    switch (widget.result.type) {
-      case SearchResultType.book:
-        label = 'Book';
-        break;
-      case SearchResultType.poem:
-        label = 'Poem';
-        break;
-      case SearchResultType.line:
-        label = 'Line';
-        break;
-    }
-
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceVariant.withOpacity(0.5),
-        borderRadius: BorderRadius.circular(12.r),
-      ),
-      child: Text(
-        label,
-        style: AppTextStyles.textTheme.labelSmall?.copyWith(
-          color: theme.colorScheme.onSurfaceVariant,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-    );
-  }
-
-  void _onTapDown() {
-    setState(() => _isPressed = true);
-    _animationController.reverse();
-  }
-
-  void _onTapUp() {
-    setState(() => _isPressed = false);
-    _animationController.forward();
-  }
-
-  void _showOptions(BuildContext context) {
-    HapticFeedback.mediumImpact();
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (context) => _buildOptionsBottomSheet(context),
-    );
-  }
-
-  Widget _buildOptionsBottomSheet(BuildContext context) {
-    return Container(
-      decoration: AppDecorations.bottomSheetDecoration(context),
-      child: SafeArea(
-        child: Padding(
-          padding: AppDecorations.defaultPadding,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 40.w,
-                height: 4.h,
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.4),
-                  borderRadius: BorderRadius.circular(2.r),
-                ),
-              ),
-              SizedBox(height: 20.h),
-              _buildOptionTile(
-                context,
-                icon: Icons.visibility_rounded,
-                title: 'View ${widget.result.type.name}',
-                subtitle: 'Open the ${widget.result.type.name.toLowerCase()}',
-                onTap: () {
-                  Navigator.pop(context);
-                  _navigateToDetails();
-                },
-              ),
-              _buildOptionTile(
-                context,
-                icon: Icons.share_rounded,
-                title: 'Share',
-                subtitle: 'Share this ${widget.result.type.name.toLowerCase()}',
-                onTap: () {
-                  Navigator.pop(context);
-                  _shareResult(context);
-                },
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildOptionTile(
-    BuildContext context, {
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required VoidCallback onTap,
-  }) {
-    final theme = Theme.of(context);
-    
-    return ListTile(
-      contentPadding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 4.h),
-      leading: Container(
-        padding: EdgeInsets.all(8.w),
-        decoration: AppDecorations.iconContainerDecoration(
-          context,
-          theme.colorScheme.primary,
-        ),
-        child: Icon(
-          icon,
-          color: theme.colorScheme.primary,
-          size: 20.w,
-        ),
-      ),
-      title: Text(
-        title,
-        style: AppTextStyles.getTitleStyle(context),
-      ),
-      subtitle: Text(
-        subtitle,
-        style: AppTextStyles.getBodyStyle(context).copyWith(
-          color: theme.colorScheme.onSurfaceVariant,
-        ),
-      ),
-      onTap: onTap,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12.r),
-      ),
-    );
-  }
-
-  void _shareResult(BuildContext context) {
-    // Implement sharing functionality
-    debugPrint('Sharing result: ${widget.result.title}');
-  }
-
-  void _navigateToDetails() {
+  void _navigateToDetails() async {
     HapticFeedback.lightImpact();
-    switch (widget.result.type) {
+    switch (result.type) {
       case SearchResultType.book:
         Get.toNamed('/book-poems', arguments: {
-          'book_id': widget.result.id,
-          'book_name': widget.result.title,
+          'book_id': result.id,
+          'book_name': result.title,
           'view_type': 'book_specific'
         });
         break;
       case SearchResultType.poem:
       case SearchResultType.line:
-        Get.toNamed('/poem-detail', arguments: {
-          'poem_id': widget.result.id,
-          'title': widget.result.title,
-          'content': widget.result.subtitle,
-          'type': widget.result.type.toString(),
-        });
+        // For poems and lines, fetch the full poem data first
+        try {
+          final poemId = int.tryParse(result.id) ?? 0;
+          if (poemId > 0) {
+            // Show loading indicator
+            Get.dialog(
+              AlertDialog(
+                content: Row(
+                  children: [
+                    const CircularProgressIndicator(),
+                    const SizedBox(width: 16),
+                    Text('Loading poem...'),
+                  ],
+                ),
+              ),
+              barrierDismissible: false,
+            );
+
+            // Get the poem repository instance
+            final poemRepository = Get.find<PoemRepository>();
+            
+            // Fetch all poems and find the specific one
+            final allPoems = await poemRepository.getAllPoems();
+            final fullPoem = allPoems.firstWhereOrNull((poem) => poem.id == poemId);
+            
+            // Close loading dialog
+            if (Get.isDialogOpen ?? false) {
+              Get.back();
+            }
+            
+            if (fullPoem != null) {
+              // Navigate with the full poem object
+              Get.toNamed('/poem-detail', arguments: fullPoem);
+            } else {
+              // Fallback to the old method with limited data
+              Get.snackbar(
+                'Error',
+                'Could not load full poem data',
+                snackPosition: SnackPosition.BOTTOM,
+              );
+              Get.toNamed('/poem-detail', arguments: {
+                'poem_id': result.id,
+                'title': result.title,
+                'content': result.subtitle,
+                'type': result.type.toString(),
+              });
+            }
+          } else {
+            // Fallback to the old method
+            Get.toNamed('/poem-detail', arguments: {
+              'poem_id': result.id,
+              'title': result.title,
+              'content': result.subtitle,
+              'type': result.type.toString(),
+            });
+          }
+        } catch (e) {
+          // Close loading dialog if it's open
+          if (Get.isDialogOpen ?? false) {
+            Get.back();
+          }
+          
+          debugPrint('Error fetching full poem: $e');
+          Get.snackbar(
+            'Error',
+            'Could not load poem. Please try again.',
+            snackPosition: SnackPosition.BOTTOM,
+          );
+        }
         break;
     }
   }

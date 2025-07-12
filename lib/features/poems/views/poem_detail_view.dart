@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+
 import 'package:get/get.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../controllers/poem_controller.dart';
 import '../../../features/poems/models/poem.dart';
 import '../../../widgets/analysis/word_analysis_sheet.dart';
@@ -17,6 +19,18 @@ class PoemDetailView extends GetView<PoemController> {
   Widget build(BuildContext context) {
     final args = Get.arguments;
     late final Poem poem;
+    final ScrollController scrollController = ScrollController();
+    
+    // Improved FAB state management
+    final RxDouble fabX = (MediaQuery.of(context).size.width - 80.0).obs; // Default right position
+    final RxDouble fabY = (MediaQuery.of(context).size.height * 0.6).obs; // Default middle-right position
+    final RxBool isDragging = false.obs;
+    final RxBool isLongPressing = false.obs;
+    final RxBool showFab = true.obs; // Always show for all poems
+    final RxDouble dragScale = 1.0.obs;
+
+    // Load saved FAB position
+    _loadFabPosition(fabX, fabY, context);
 
     try {
       if (args is Poem) {
@@ -29,31 +43,68 @@ class PoemDetailView extends GetView<PoemController> {
         );
       }
 
+      // Load notes for highlighting
+      controller.loadPoemNotes(poem.id);
+
       return Scaffold(
         appBar: AppBar(
-          title: Obx(() => Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+          title: Obx(() => Row(
                 children: [
-                  Row(
-                    children: [
-                      const Icon(Icons.auto_stories, size: 20),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
+                  // Beautiful poetry icon with gradient
+                  Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          Theme.of(context).colorScheme.primary,
+                          Theme.of(context).colorScheme.secondary,
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(
+                      Icons.auto_stories,
+                      color: Theme.of(context).colorScheme.onPrimary,
+                      size: 20,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
                           poem.title,
                           style: TextStyle(
                             fontFamily: 'JameelNooriNastaleeq',
-                            fontSize: controller.fontSize.value +
-                                8, // reactive update
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
                           ),
                           overflow: TextOverflow.ellipsis,
                         ),
-                      ),
-                    ],
-                  ),
-                  Text(
-                    'From: ${controller.currentBookName}',
-                    style: Theme.of(context).textTheme.bodySmall,
+                        // Replace "From:" with a better indicator
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.book_outlined,
+                              size: 14,
+                              color: Theme.of(context).colorScheme.onSurfaceVariant,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              controller.currentBookName.value,
+                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               )),
@@ -66,6 +117,12 @@ class PoemDetailView extends GetView<PoemController> {
               position: PopupMenuPosition.under,
               onSelected: (value) {
                 switch (value) {
+                  case 'favorite':
+                    controller.toggleFavorite(poem);
+                    break;
+                  case 'analyze':
+                    controller.showPoemAnalysis(poem.cleanData);
+                    break;
                   case 'share':
                     controller.sharePoem(poem);
                     break;
@@ -75,12 +132,6 @@ class PoemDetailView extends GetView<PoemController> {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(content: Text('Poem copied to clipboard')),
                     );
-                    break;
-                  case 'analyze':
-                    controller.showPoemAnalysis(poem.cleanData);
-                    break;
-                  case 'favorite':
-                    controller.toggleFavorite(poem);
                     break;
                 }
               },
@@ -139,19 +190,24 @@ class PoemDetailView extends GetView<PoemController> {
                   'Copy Text',
                   context,
                 ),
-                const PopupMenuDivider(),
+              ],
+            ),
+            
+            // Font size controls in app bar
+            PopupMenuButton<String>(
+              icon: const Icon(Icons.text_fields),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              position: PopupMenuPosition.under,
+              itemBuilder: (context) => [
                 PopupMenuItem<String>(
-                  enabled: true,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  enabled: false,
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         'Font Size',
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
+                        style: Theme.of(context).textTheme.titleSmall,
                       ),
                       const SizedBox(height: 8),
                       Row(
@@ -190,34 +246,166 @@ class PoemDetailView extends GetView<PoemController> {
             ),
           ],
         ),
-        body: Obx(() => SingleChildScrollView(
-              child: SafeArea(
-                child: _buildPoemContent(
-                    context, poem), // now rebuilds on fontSize update
-              ),
-            )),
-        floatingActionButton: Obx(() => controller.isShowingNotes.value
-            ? const SizedBox.shrink() // Hide FAB when notes are already showing
-            : FloatingActionButton(
-                onPressed: () {
-                  try {
-                    final poem = Get.arguments is Poem
-                        ? Get.arguments as Poem
-                        : Get.arguments is Map<String, dynamic>
-                            ? Poem.fromSearchResult(Get.arguments)
-                            : null;
+        body: Stack(
+          children: [
+            Obx(() => SingleChildScrollView(
+                  controller: scrollController,
+                  child: SafeArea(
+                    child: _buildPoemContent(
+                        context, poem), // now rebuilds on fontSize update
+                  ),
+                )),
 
-                    if (poem != null) {
-                      _showNotesBottomSheet(context, poem);
-                    }
-                  } catch (e) {
-                    debugPrint('Error opening notes: $e');
-                  }
-                },
-                child: const Icon(Icons.notes),
-                tooltip: 'View Notes',
-              ) as Widget),
-        floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+            // Improved Draggable Add notes button - always visible and smooth
+            Obx(() => Positioned(
+              left: fabX.value,
+              top: fabY.value,
+              child: Transform.scale(
+                scale: dragScale.value,
+                child: AnimatedOpacity(
+                  opacity: showFab.value ? 1.0 : 0.0,
+                  duration: const Duration(milliseconds: 200),
+                  child: GestureDetector(
+                    onTap: () {
+                      if (!isDragging.value) {
+                        HapticFeedback.lightImpact();
+                      try {
+                        final poem = Get.arguments is Poem
+                            ? Get.arguments as Poem
+                            : Get.arguments is Map<String, dynamic>
+                                ? Poem.fromSearchResult(Get.arguments)
+                                : null;
+
+                        if (poem != null) {
+                          _showNotesBottomSheet(context, poem);
+                        }
+                      } catch (e) {
+                        debugPrint('Error opening notes: $e');
+                      }
+                      }
+                    },
+                    onLongPressStart: (details) {
+                      isLongPressing.value = true;
+                      dragScale.value = 1.05;
+                      HapticFeedback.mediumImpact();
+                    },
+                    onLongPressEnd: (details) {
+                      if (!isDragging.value) {
+                        isLongPressing.value = false;
+                        dragScale.value = 1.0;
+                      }
+                    },
+                    onLongPressMoveUpdate: (details) {
+                      if (isLongPressing.value && !isDragging.value) {
+                        isDragging.value = true;
+                        dragScale.value = 1.15;
+                        HapticFeedback.heavyImpact();
+                      }
+                      
+                      if (isDragging.value) {
+                        final screenSize = MediaQuery.of(context).size;
+                        final renderBox = context.findRenderObject() as RenderBox?;
+                        if (renderBox != null) {
+                          final localPosition = renderBox.globalToLocal(details.globalPosition);
+                          final newX = (localPosition.dx - 28).clamp(0.0, screenSize.width - 56.0);
+                          final newY = (localPosition.dy - 28).clamp(kToolbarHeight, screenSize.height - 56.0 - MediaQuery.of(context).padding.bottom);
+                          
+                          fabX.value = newX;
+                          fabY.value = newY;
+                        }
+                      }
+                    },
+                    onLongPressUp: () {
+                      if (isDragging.value) {
+                        isDragging.value = false;
+                        isLongPressing.value = false;
+                        dragScale.value = 1.0;
+                        _saveFabPosition(fabX.value, fabY.value);
+                        HapticFeedback.lightImpact();
+                        
+                        // Snap to edges for better UX
+                        _snapToNearestEdge(fabX, fabY, context);
+                      }
+                    },
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 150),
+                      width: 56,
+                      height: 56,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: isDragging.value 
+                            ? [
+                                Theme.of(context).colorScheme.primary,
+                                Theme.of(context).colorScheme.secondary,
+                              ]
+                            : [
+                                Theme.of(context).colorScheme.primary.withOpacity(0.85),
+                                Theme.of(context).colorScheme.primary.withOpacity(0.75),
+                              ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(isDragging.value ? 18 : 16),
+                        border: isDragging.value ? Border.all(
+                          color: Theme.of(context).colorScheme.outline.withOpacity(0.3),
+                          width: 1.5,
+                        ) : null,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Theme.of(context).colorScheme.primary.withOpacity(
+                              isDragging.value ? 0.4 : 0.25
+                            ),
+                            blurRadius: isDragging.value ? 16 : 8,
+                            offset: Offset(0, isDragging.value ? 4 : 2),
+                            spreadRadius: isDragging.value ? 2 : 0,
+                          ),
+                        ],
+                      ),
+                      child: Material(
+                        color: Colors.transparent,
+                        borderRadius: BorderRadius.circular(isDragging.value ? 18 : 16),
+                        child: Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            AnimatedRotation(
+                              turns: isDragging.value ? 0.05 : 0.0,
+                              duration: const Duration(milliseconds: 150),
+                              child: Icon(
+                                Icons.edit_note_rounded,
+                                color: Theme.of(context).colorScheme.onPrimary,
+                                size: isDragging.value ? 26 : 24,
+                              ),
+                            ),
+                            if (isDragging.value)
+                              Positioned(
+                                top: 6,
+                                right: 6,
+                                child: Container(
+                                  width: 6,
+                                  height: 6,
+                                  decoration: BoxDecoration(
+                                    color: Theme.of(context).colorScheme.secondary,
+                                    shape: BoxShape.circle,
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withOpacity(0.2),
+                                        blurRadius: 2,
+                                        offset: const Offset(0, 1),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  ),
+                ),
+              )),
+          ],
+        ),
       );
     } catch (e) {
       debugPrint('Error loading poem: $e');
@@ -491,6 +679,52 @@ class PoemDetailView extends GetView<PoemController> {
         ],
       ),
     );
+  }
+
+  // Helper methods for FAB position persistence
+  Future<void> _loadFabPosition(RxDouble fabX, RxDouble fabY, BuildContext context) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final savedX = prefs.getDouble('fab_position_x');
+      final savedY = prefs.getDouble('fab_position_y');
+      
+      if (savedX != null && savedY != null) {
+        fabX.value = savedX;
+        fabY.value = savedY;
+      } else {
+        // Set default position if not saved
+        final screenSize = MediaQuery.of(context).size;
+        fabX.value = (screenSize.width - 80.0);
+        fabY.value = (screenSize.height * 0.6);
+      }
+    } catch (e) {
+      debugPrint('Error loading FAB position: $e');
+    }
+  }
+  
+  Future<void> _saveFabPosition(double x, double y) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setDouble('fab_position_x', x);
+      await prefs.setDouble('fab_position_y', y);
+    } catch (e) {
+      debugPrint('Error saving FAB position: $e');
+    }
+  }
+
+  // Snap FAB to nearest edge for better UX (like iOS Control Center)
+  void _snapToNearestEdge(RxDouble fabX, RxDouble fabY, BuildContext context) {
+    final screenSize = MediaQuery.of(context).size;
+    final centerX = screenSize.width / 2;
+    
+    // Animate to left or right edge based on current position
+    final targetX = fabX.value < centerX ? 16.0 : screenSize.width - 72.0;
+    
+    // Animate the movement
+    Future.delayed(const Duration(milliseconds: 100), () {
+      fabX.value = targetX;
+      _saveFabPosition(fabX.value, fabY.value);
+    });
   }
 }
 

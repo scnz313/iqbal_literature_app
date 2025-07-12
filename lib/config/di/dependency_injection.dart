@@ -52,7 +52,7 @@ class DependencyInjection {
       final deepseekClient = DeepSeekApiClient();
       Get.put<DeepSeekApiClient>(deepseekClient, permanent: true);
 
-      final textAnalysisService = TextAnalysisService(deepseekClient, analysisCacheService);
+      final textAnalysisService = TextAnalysisService();
       Get.put<TextAnalysisService>(textAnalysisService, permanent: true);
 
       // 3. Initialize Services
@@ -104,7 +104,6 @@ class DependencyInjection {
         PoemController(
           Get.find<PoemRepository>(),
           Get.find<AnalyticsService>(),
-          Get.find<TextAnalysisService>(),
         ),
         permanent: true,  // Make it permanent
       );

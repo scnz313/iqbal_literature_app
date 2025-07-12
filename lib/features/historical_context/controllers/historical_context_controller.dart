@@ -1,6 +1,6 @@
 import 'package:get/get.dart';
 import 'package:flutter/foundation.dart';
-import 'dart:convert';
+
 import '../../../services/api/gemini_api.dart';
 import '../../../services/api/deepseek_api_client.dart';
 import '../models/timeline_event.dart';
@@ -28,21 +28,28 @@ class HistoricalContextController extends GetxController {
     try {
       isLoading.value = true;
       error.value = '';
+      
+      debugPrint('📊 Loading timeline for book: $bookName');
+      debugPrint('📊 Time period: $timePeriod');
 
       final events = await GeminiAPI.getTimelineEvents(bookName, timePeriod);
 
       if (events.isEmpty) {
-        error.value = 'No timeline events available';
+        debugPrint('⚠️ No events from API, using default timeline');
+        timelineEvents.value = defaultTimelineEvents;
+        error.value = 'Using default timeline data';
         return;
       }
 
       timelineEvents.value =
           events.map((e) => TimelineEvent.fromMap(e)).toList();
+      debugPrint('✅ Loaded ${timelineEvents.length} timeline events');
     } catch (e) {
       debugPrint('⚠️ Timeline error: $e');
       // Load default timeline on error
       timelineEvents.value = defaultTimelineEvents;
       error.value = 'Using default timeline data';
+      debugPrint('✅ Fallback to default timeline (${defaultTimelineEvents.length} events)');
     } finally {
       isLoading.value = false;
     }
@@ -108,22 +115,7 @@ class HistoricalContextController extends GetxController {
     }
   }
 
-  List<Map<String, dynamic>> _getDefaultTimelineEvents() {
-    return [
-      {
-        'year': '1915',
-        'title': 'Writing of Asrar-e-Khudi',
-        'description': 'Iqbal composes his first Persian masterpiece.',
-        'significance': 'Introduces his philosophy of self.',
-      },
-      {
-        'year': '1924',
-        'title': 'Bang-e-Dara Publication',
-        'description': 'Collection of Urdu poems published.',
-        'significance': 'Major contribution to Urdu literature.',
-      },
-    ];
-  }
+
 
   Map<String, String> _getDefaultHistoricalContext() {
     return {

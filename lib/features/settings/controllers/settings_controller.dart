@@ -6,7 +6,7 @@ import '../../../data/services/analytics_service.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../config/providers/theme_provider.dart';
 import '../../../config/providers/locale_provider.dart';
-import '../../../core/localization/language_constants.dart';
+
 import '../../../config/providers/font_scale_provider.dart';
 
 class SettingsController extends GetxController {
@@ -14,7 +14,7 @@ class SettingsController extends GetxController {
   final AnalyticsService _analyticsService;
   late final ThemeProvider _themeProvider;
   late final LocaleProvider _localeProvider;
-  late final FontScaleProvider _fontScaleProvider;
+
 
   SettingsController(
     this._storageService,
@@ -22,7 +22,7 @@ class SettingsController extends GetxController {
   ) {
     _themeProvider = Get.find<ThemeProvider>();
     _localeProvider = Get.find<LocaleProvider>();
-    _fontScaleProvider = Get.find<FontScaleProvider>();
+
   }
 
   final RxString currentLanguage = 'en'.obs;

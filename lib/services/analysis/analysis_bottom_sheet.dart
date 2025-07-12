@@ -1,19 +1,11 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:shimmer/shimmer.dart';
-import '../../core/themes/app_decorations.dart';
-import '../../core/themes/text_styles.dart';
-import 'dart:math';
-
-// Add this class at the top, outside of any other class
-// Helper class for content sections
-class ContentSection {
-  final String title;
-  final String content;
-
-  ContentSection({required this.title, required this.content});
-}
+import 'package:get/get.dart';
+import '../api/gemini_api.dart';
+import '../api/openrouter_service.dart';
+import '../../core/widgets/scaled_text.dart';
 
 class AnalysisBottomSheet extends StatefulWidget {
   final String poemTitle;
@@ -30,9 +22,11 @@ class AnalysisBottomSheet extends StatefulWidget {
     return showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
-      barrierColor: Colors.black.withOpacity(0.05),
+      barrierColor: Colors.black.withOpacity(0.4),
       isScrollControlled: true,
       useRootNavigator: true,
+      enableDrag: true,
+      isDismissible: true,
       builder: (context) => AnalysisBottomSheet(
         poemTitle: poemTitle,
         analysisData: analysisData,
@@ -45,77 +39,86 @@ class AnalysisBottomSheet extends StatefulWidget {
 }
 
 class _AnalysisBottomSheetState extends State<AnalysisBottomSheet>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _fadeAnimation;
+    with TickerProviderStateMixin {
+  // Animation controllers
+  late AnimationController _slideController;
+  
+  // State management
+  final ScrollController _scrollController = ScrollController();
+  final RxBool showScrollToTop = false.obs;
+  final RxBool isTranslating = false.obs;
+  final RxBool showingTranslation = false.obs;
+  
+  // Data
+  String originalContent = '';
+  String translatedContent = '';
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
+    _initAnimations();
+    _setupListeners();
+  }
+
+  void _initAnimations() {
+    _slideController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 300),
-    );
+      duration: const Duration(milliseconds: 450),
+    )..forward();
+  }
 
-    _fadeAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(
-      CurvedAnimation(
-        parent: _controller,
-        curve: Curves.easeOut,
-      ),
-    );
-
-    _controller.forward();
+  void _setupListeners() {
+    _scrollController.addListener(() {
+      showScrollToTop.value = _scrollController.offset > 250;
+    });
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _slideController.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _controller,
-      builder: (context, child) {
-        return FadeTransition(
-          opacity: _fadeAnimation,
+    final theme = Theme.of(context);
+    return SlideTransition(
+      position: Tween<Offset>(
+        begin: const Offset(0, 0.2),
+        end: Offset.zero,
+      ).animate(CurvedAnimation(
+        parent: _slideController,
+        curve: Curves.easeOutQuart,
+      )),
+      child: FadeTransition(
+        opacity: _slideController,
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 3, sigmaY: 3),
           child: Container(
-            decoration: AppDecorations.bottomSheetDecoration(context),
+            clipBehavior: Clip.antiAlias,
+            decoration: BoxDecoration(
+              color: theme.scaffoldBackgroundColor.withOpacity(0.85),
+              borderRadius: BorderRadius.vertical(top: Radius.circular(24.r)),
+            ),
             child: SafeArea(
               child: SizedBox(
-                height: MediaQuery.of(context).size.height * 0.85,
+                height: MediaQuery.of(context).size.height * 0.9,
                 child: Column(
                   children: [
-                    // Drag handle
-                    Container(
-                      width: 40.w,
-                      height: 4.h,
-                      margin: EdgeInsets.only(top: 12.h, bottom: 8.h),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.4),
-                        borderRadius: BorderRadius.circular(2.r),
-                      ),
-                    ),
-                    
-                    // Header
                     _buildHeader(context),
-                    
-                    // Content
                     Expanded(
                       child: FutureBuilder<String>(
                         future: widget.analysisData,
                         builder: (context, snapshot) {
                           if (snapshot.connectionState == ConnectionState.waiting) {
-                            return _buildLoadingState();
+                            return _buildLoadingState(context);
                           }
-                          if (snapshot.hasError) {
-                            return _buildErrorState(snapshot.error!);
+                          if (snapshot.hasError || !snapshot.hasData || snapshot.data!.isEmpty) {
+                            return _buildErrorState(context, snapshot.error);
                           }
-                          return _buildContent(snapshot.data!);
+                          originalContent = _formatAnalysisContent(snapshot.data!);
+                          return _buildContent(context);
                         },
                       ),
                     ),
@@ -124,437 +127,435 @@ class _AnalysisBottomSheetState extends State<AnalysisBottomSheet>
               ),
             ),
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 
   Widget _buildHeader(BuildContext context) {
     final theme = Theme.of(context);
-    final isUrdu = widget.poemTitle.contains(RegExp(r'[\u0600-\u06FF]'));
-    
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
-      decoration: BoxDecoration(
-        border: Border(
-          bottom: BorderSide(
-            color: theme.colorScheme.outline.withOpacity(0.1),
-            width: 1,
-          ),
-        ),
-      ),
-      child: Row(
+    return Padding(
+      padding: EdgeInsets.fromLTRB(16.w, 12.h, 16.w, 8.h),
+      child: Column(
         children: [
           Container(
-            width: 50.w,
-            height: 50.w,
-            decoration: AppDecorations.iconContainerDecoration(
-              context,
-              theme.colorScheme.primary,
-            ),
-            child: Icon(
-              Icons.analytics_outlined,
-              size: 24.w,
-              color: theme.colorScheme.primary,
+            width: 40.w,
+            height: 4.h,
+            decoration: BoxDecoration(
+              color: theme.colorScheme.onSurface.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(2.r),
             ),
           ),
-          SizedBox(width: 16.w),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: isUrdu 
-                  ? CrossAxisAlignment.end 
-                  : CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Analysis',
-                  style: AppTextStyles.getTitleStyle(context).copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                SizedBox(height: 4.h),
-                Text(
-                  widget.poemTitle,
-                  style: AppTextStyles.getBodyStyle(context).copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                    fontFamily: isUrdu ? 'JameelNooriNastaleeq' : null,
-                    fontSize: isUrdu ? 14.sp : 12.sp,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  textDirection: isUrdu ? TextDirection.rtl : TextDirection.ltr,
-                ),
-              ],
-            ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.close),
-            onPressed: () => Navigator.of(context).pop(),
-            style: IconButton.styleFrom(
-              backgroundColor: theme.colorScheme.surfaceVariant.withOpacity(0.5),
-              padding: EdgeInsets.all(8.w),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildLoadingState() {
-    return Padding(
-      padding: EdgeInsets.all(20.w),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          TweenAnimationBuilder<double>(
-            duration: const Duration(milliseconds: 600),
-            tween: Tween(begin: 0.0, end: 1.0),
-            builder: (context, value, child) => Opacity(
-              opacity: value,
-              child: child,
-            ),
-            child: Column(
-              children: [
-                Container(
-                  width: 80.w,
-                  height: 80.w,
-                  decoration: AppDecorations.iconContainerDecoration(
-                    context,
-                    Theme.of(context).colorScheme.primary,
-                  ),
-                  child: Icon(
-                    Icons.analytics_outlined,
-                    size: 40.w,
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
-                ),
-                SizedBox(height: 24.h),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
+          SizedBox(height: 12.h),
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'Analyzing poem',
-                      style: AppTextStyles.getTitleStyle(context).copyWith(
-                        color: Theme.of(context).colorScheme.primary,
+                    ScaledText(
+                      'AI-Powered Analysis',
+                      style: TextStyle(
+                        fontSize: 20.sp,
+                        fontWeight: FontWeight.w700,
+                        color: theme.colorScheme.onSurface,
                       ),
                     ),
-                    SizedBox(width: 8.w),
-                    _buildLoadingDots(),
+                    ScaledText(
+                      'Poem Analysis',
+                      style: TextStyle(
+                        fontSize: 14.sp,
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
                   ],
                 ),
-              ],
-            ),
-          ),
-          SizedBox(height: 32.h),
-          ..._buildLoadingSteps(),
-        ],
-      ),
-    );
-  }
-
-  List<Widget> _buildLoadingSteps() {
-    final steps = [
-      'Analyzing poem structure',
-      'Extracting themes',
-      'Identifying metaphors',
-      'Generating insights',
-      'Finalizing analysis',
-    ];
-    
-    return steps.asMap().entries.map((entry) {
-      final index = entry.key;
-      final step = entry.value;
-      return TweenAnimationBuilder<double>(
-        duration: Duration(milliseconds: 800 + (index * 200)),
-        tween: Tween(begin: 0.0, end: 1.0),
-        builder: (context, value, child) => Opacity(
-          opacity: value,
-          child: Transform.translate(
-            offset: Offset(20 * (1 - value), 0),
-            child: child,
-          ),
-        ),
-        child: Container(
-          margin: EdgeInsets.only(bottom: 12.h),
-          padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
-          decoration: AppDecorations.cardDecoration(context),
-          child: Row(
-            children: [
-              Icon(
-                Icons.arrow_right,
-                size: 20.w,
-                color: Theme.of(context).colorScheme.primary,
               ),
-              SizedBox(width: 8.w),
-              Text(
-                step,
-                style: AppTextStyles.getBodyStyle(context),
+              IconButton(
+                onPressed: () => Navigator.pop(context),
+                icon: Icon(Icons.close_rounded, size: 24.w),
+                color: theme.colorScheme.onSurfaceVariant,
+                splashRadius: 20.r,
               ),
-              if (index == steps.length - 1) ...[
-                SizedBox(width: 8.w),
-                Text(
-                  'fin.',
-                  style: AppTextStyles.getBodyStyle(context).copyWith(
-                    color: Theme.of(context).colorScheme.secondary,
-                    fontStyle: FontStyle.italic,
-                  ),
-                ),
-              ],
             ],
           ),
-        ),
-      );
-    }).toList();
-  }
-
-  Widget _buildLoadingDots() {
-    return SizedBox(
-      width: 24.w,
-      child: TweenAnimationBuilder<int>(
-        duration: const Duration(milliseconds: 1500),
-        tween: IntTween(begin: 0, end: 3),
-        builder: (context, value, child) {
-          return Text(
-            '.' * value,
-            style: AppTextStyles.getTitleStyle(context).copyWith(
-              color: Theme.of(context).colorScheme.primary,
-            ),
-          );
-        },
+        ],
       ),
     );
   }
 
-  Widget _buildErrorState(Object error) {
-    return Padding(
-      padding: EdgeInsets.all(20.w),
+  Widget _buildContent(BuildContext context) {
+    if (originalContent.isEmpty) {
+      return _buildEmptyState(context);
+    }
+
+    final theme = Theme.of(context);
+    return Stack(
+      children: [
+        SingleChildScrollView(
+          controller: _scrollController,
+          padding: EdgeInsets.fromLTRB(16.w, 8.h, 16.w, 40.h),
+          child: Card(
+            elevation: 0,
+            margin: EdgeInsets.zero,
+            color: theme.colorScheme.onSurface.withOpacity(0.04),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16.r),
+              side: BorderSide(
+                color: theme.colorScheme.outline.withOpacity(0.1),
+                width: 1,
+              ),
+            ),
+            child: Padding(
+              padding: EdgeInsets.all(16.w),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.analytics_outlined,
+                        color: theme.colorScheme.primary,
+                        size: 20.w,
+                      ),
+                      SizedBox(width: 10.w),
+                      Expanded(
+                        child: ScaledText(
+                          'Comprehensive Analysis',
+                          style: TextStyle(
+                            fontSize: 18.sp,
+                            fontWeight: FontWeight.w600,
+                            color: theme.colorScheme.primary,
+                          ),
+                        ),
+                      ),
+                      // Translate button
+                      Obx(() => IconButton(
+                        icon: isTranslating.value
+                            ? SizedBox(
+                                width: 18.w,
+                                height: 18.w,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : Icon(
+                                Icons.translate_rounded,
+                                size: 18.w,
+                                color: showingTranslation.value
+                                    ? theme.colorScheme.primary
+                                    : theme.colorScheme.onSurfaceVariant,
+                              ),
+                        onPressed: isTranslating.value ? null : _handleTranslate,
+                        splashRadius: 18.r,
+                      )),
+                      // Copy button
+                      IconButton(
+                        icon: Icon(Icons.copy_rounded, size: 18.w),
+                        onPressed: _copyToClipboard,
+                        color: theme.colorScheme.onSurfaceVariant,
+                        splashRadius: 18.r,
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 16.h),
+                  Obx(() {
+                    final raw = showingTranslation.value && translatedContent.isNotEmpty
+                        ? translatedContent
+                        : originalContent;
+                    final lines = raw.split('\n');
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: lines.map((line) {
+                        final isHeader = line.trim().endsWith(':');
+                        final isBullet = RegExp(r'^\s*[•\-]').hasMatch(line);
+                        final isUrdu = _containsUrdu(line);
+
+                        // Base text style
+                        final textStyle = TextStyle(
+                          fontSize: isHeader ? 15.sp : 13.sp,
+                          fontWeight: isHeader ? FontWeight.w700 : FontWeight.normal,
+                          height: 1.55,
+                          color: isHeader
+                              ? theme.colorScheme.primary
+                              : theme.colorScheme.onSurface.withOpacity(0.9),
+                          fontFamily: isUrdu ? 'JameelNooriNastaleeq' : null,
+                        );
+
+                        // Build the text widget with directionality
+                        final textWidget = Directionality(
+                          textDirection: isUrdu ? TextDirection.rtl : TextDirection.ltr,
+                          child: ScaledText(
+                            line.trim(),
+                            style: textStyle,
+                            textAlign: isUrdu ? TextAlign.right : TextAlign.left,
+                          ),
+                        );
+
+                        return Padding(
+                          padding: EdgeInsets.only(
+                            left: (!isUrdu && isBullet) ? 8.w : 0,
+                            right: (isUrdu && isBullet) ? 8.w : 0,
+                            top: isHeader ? 12.h : 0,
+                            bottom: 4.h,
+                          ),
+                          child: textWidget,
+                        );
+                      }).toList(),
+                    );
+                  }),
+                ],
+              ),
+            ),
+          ),
+        ),
+        Obx(() => showScrollToTop.value
+            ? Positioned(
+                bottom: 24.h,
+                right: 24.w,
+                child: _buildScrollToTopButton(context),
+              )
+            : const SizedBox.shrink()),
+      ],
+    );
+  }
+
+  Widget _buildScrollToTopButton(BuildContext context) {
+    final theme = Theme.of(context);
+    return FloatingActionButton.small(
+      onPressed: () {
+        _scrollController.animateTo(
+          0,
+          duration: const Duration(milliseconds: 500),
+          curve: Curves.easeOutCubic,
+        );
+      },
+      backgroundColor: theme.colorScheme.primary,
+      foregroundColor: theme.colorScheme.onPrimary,
+      child: const Icon(Icons.keyboard_arrow_up_rounded),
+    );
+  }
+
+  Widget _buildLoadingState(BuildContext context) {
+    final theme = Theme.of(context);
+    return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Container(
-            width: 80.w,
-            height: 80.w,
-            decoration: AppDecorations.iconContainerDecoration(
-              context,
-              Theme.of(context).colorScheme.error,
-            ),
-            child: Icon(
-              Icons.error_outline,
-              size: 40.w,
-              color: Theme.of(context).colorScheme.error,
+          SizedBox(
+            width: 40.w,
+            height: 40.w,
+            child: CircularProgressIndicator(
+              strokeWidth: 3,
+              valueColor: AlwaysStoppedAnimation<Color>(theme.colorScheme.primary),
             ),
           ),
           SizedBox(height: 24.h),
-          Text(
-            'Analysis Failed',
-            style: AppTextStyles.getTitleStyle(context).copyWith(
-              color: Theme.of(context).colorScheme.error,
+          ScaledText(
+            'Analyzing poem...',
+            style: TextStyle(
+              fontSize: 16.sp,
+              color: theme.colorScheme.onSurfaceVariant,
             ),
-          ),
-          SizedBox(height: 8.h),
-          Text(
-            error.toString(),
-            style: AppTextStyles.getBodyStyle(context),
-            textAlign: TextAlign.center,
-          ),
-          SizedBox(height: 24.h),
-          ElevatedButton.icon(
-            onPressed: () => setState(() {}),
-            icon: const Icon(Icons.refresh),
-            label: const Text('Retry Analysis'),
-            style: AppDecorations.elevatedButtonStyle,
           ),
         ],
       ),
     );
   }
 
-  Widget _buildContent(String content) {
-    debugPrint('🧩 Displaying analysis content: ${content.substring(0, min(content.length, 100))}...');
-
-    final sections = _parseContentSections(content);
-
-    return ListView.builder(
-      padding: EdgeInsets.all(16.w),
-      physics: const BouncingScrollPhysics(),
-      itemCount: sections.length,
-      itemBuilder: (context, index) {
-        final section = sections[index];
-        final colors = [
-          Colors.blue,
-          Colors.orange,
-          Colors.green,
-          Colors.purple,
-          Colors.red,
-          Colors.teal
-        ];
-        final color = colors[index % colors.length];
-
-        return Container(
-          margin: EdgeInsets.only(bottom: 16.h),
-          decoration: BoxDecoration(
-            color: color.withOpacity(0.05),
-            borderRadius: BorderRadius.circular(12.r),
-            border: Border.all(
-              color: color.withOpacity(0.2),
-              width: 1.5,
+  Widget _buildErrorState(BuildContext context, Object? error) {
+    final theme = Theme.of(context);
+    return Center(
+      child: Padding(
+        padding: EdgeInsets.all(32.w),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.wifi_off_rounded,
+              size: 50.w,
+              color: theme.colorScheme.primary,
             ),
-          ),
-          child: Padding(
-            padding: EdgeInsets.all(16.w),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: EdgeInsets.all(8.w),
-                      decoration: BoxDecoration(
-                        color: color.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8.r),
-                      ),
-                      child: Icon(
-                        _getSectionIcon(section.title),
-                        color: color,
-                        size: 20.w,
-                      ),
-                    ),
-                    SizedBox(width: 12.w),
-                    Expanded(
-                      child: Text(
-                        _formatSectionTitle(section.title),
-                        style: AppTextStyles.getTitleStyle(context).copyWith(
-                          fontWeight: FontWeight.w600,
-                          color: color.withOpacity(0.8),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                SizedBox(height: 12.h),
-                Text(
-                  section.content,
-                  style: AppTextStyles.getBodyStyle(context).copyWith(
-                    height: 1.5,
-                  ),
-                ),
-              ],
+            SizedBox(height: 16.h),
+            ScaledText(
+              'Connection Issue',
+              style: TextStyle(
+                fontSize: 18.sp,
+                fontWeight: FontWeight.w600,
+                color: theme.colorScheme.onSurface,
+              ),
             ),
-          ),
-        );
-      },
+            SizedBox(height: 8.h),
+            ScaledText(
+              'Unable to connect to analysis service. Please check your internet connection and try again.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 14.sp,
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+            SizedBox(height: 24.h),
+            ElevatedButton.icon(
+              onPressed: () {
+                Navigator.pop(context);
+              },
+              icon: Icon(Icons.refresh_rounded, size: 18.w),
+              label: Text('Try Again'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: theme.colorScheme.primary,
+                foregroundColor: theme.colorScheme.onPrimary,
+                padding: EdgeInsets.symmetric(horizontal: 24.w, vertical: 12.h),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
-  // Helper method to get an appropriate icon for each section
-  IconData _getSectionIcon(String title) {
-    final lowerTitle = title.toLowerCase();
+  Widget _buildEmptyState(BuildContext context) {
+    final theme = Theme.of(context);
+    return Center(
+      child: Padding(
+        padding: EdgeInsets.all(32.w),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.article_outlined,
+              size: 50.w,
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+            SizedBox(height: 16.h),
+            ScaledText(
+              'No Analysis Available',
+              style: TextStyle(
+                fontSize: 18.sp,
+                fontWeight: FontWeight.w600,
+                color: theme.colorScheme.onSurface,
+              ),
+            ),
+            SizedBox(height: 8.h),
+            ScaledText(
+              'The analysis could not be loaded.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 14.sp,
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
-    if (lowerTitle.contains('summary')) {
-      return Icons.subject;
-    } else if (lowerTitle.contains('theme')) {
-      return Icons.lightbulb_outline;
-    } else if (lowerTitle.contains('context') ||
-        lowerTitle.contains('historical')) {
-      return Icons.history_edu;
-    } else if (lowerTitle.contains('analysis') ||
-        lowerTitle.contains('literary')) {
-      return Icons.analytics_outlined;
-    } else {
-      return Icons.article;
+  String _formatAnalysisContent(String rawContent) {
+    if (rawContent.isEmpty) return '';
+
+    // 1. Normalise new-lines
+    String txt = rawContent.replaceAll('\r\n', '\n').replaceAll('\r', '\n');
+
+    // 2. Strip triple back-tick code fences (```)
+    txt = txt.replaceAll(RegExp(r'```[a-zA-Z]*'), '').replaceAll('```', '');
+
+    // 3. Remove markdown block-quote markers and leading hashes
+    txt = txt.replaceAll(RegExp(r'^[>#]+\s*', multiLine: true), '');
+
+    // 4. Convert bold section headers (**HEADER:**) into their own line
+    txt = txt.replaceAllMapped(
+      RegExp(r'\*\*([^*]+?):\*\*'),
+      (m) => '\n${m.group(1)!.trim()}:\n',
+    );
+
+    // 5. Remove any remaining inline bold/italic markers (**text**, *text*)
+    txt = txt.replaceAll('**', '').replaceAll('*', '');
+
+    // 6. Standardise bullet points ("- " or "* " at line start → "• ")
+    txt = txt.replaceAll(RegExp(r'^\s*[\-*]\s+', multiLine: true), '• ');
+
+    // 7. Collapse multiple spaces / tabs
+    txt = txt.replaceAll(RegExp(r'[ \t]{2,}'), ' ');
+
+    // 8. Collapse 3+ consecutive new-lines into 2
+    txt = txt.replaceAll(RegExp(r'\n{3,}'), '\n\n');
+
+    return txt.trim();
+  }
+
+  Future<void> _handleTranslate() async {
+    if (showingTranslation.value) {
+      showingTranslation.value = false;
+      return;
+    }
+
+    if (translatedContent.isNotEmpty) {
+      showingTranslation.value = true;
+      return;
+    }
+
+    isTranslating.value = true;
+
+    try {
+      final targetIsUrdu = !_containsUrdu(originalContent);
+      translatedContent = await _translateText(originalContent, targetIsUrdu);
+      showingTranslation.value = true;
+    } catch (e) {
+      if (mounted) {
+        Get.snackbar(
+          'Translation Failed',
+          'Unable to translate the analysis. Please try again.',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Get.theme.colorScheme.errorContainer,
+          colorText: Get.theme.colorScheme.onErrorContainer,
+          margin: EdgeInsets.all(12.w),
+          borderRadius: 12.r,
+          duration: const Duration(seconds: 3),
+        );
+      }
+    } finally {
+      isTranslating.value = false;
     }
   }
 
-  // Helper method to format section title for display
-  String _formatSectionTitle(String title) {
-    // Remove the colon from the end
-    String formatted =
-        title.endsWith(':') ? title.substring(0, title.length - 1) : title;
-
-    // Capitalize the first letter of each word
-    formatted = formatted.split(' ').map((word) {
-      if (word.isNotEmpty) {
-        return word[0].toUpperCase() + word.substring(1);
-      }
-      return word;
-    }).join(' ');
-
-    return formatted;
+  bool _containsUrdu(String text) {
+    return RegExp(r'[\u0600-\u06FF]').hasMatch(text);
   }
 
-  List<ContentSection> _parseContentSections(String content) {
-    final List<ContentSection> sections = [];
-    final lines = content.split('\n');
+  Future<String> _translateText(String text, bool toUrdu) async {
+    final targetLang = toUrdu ? 'Urdu' : 'English';
+    final prompt = 'Translate the following literary analysis to $targetLang. If the text is already in $targetLang simply return it unchanged. When translating to Urdu, avoid English loanwords where a standard Urdu equivalent exists, use formal literary Urdu, and keep bullet points & section headings intact. Provide only translated text:\n\n$text';
 
-    String currentTitle = '';
-    StringBuffer currentContent = StringBuffer();
-
-    // Check if it's a simple string with no sections
-    bool hasSections = false;
-    for (final line in lines) {
-      if (line.endsWith(':') && line.length < 50) {
-        hasSections = true;
-        break;
+    try {
+      if (GeminiAPI.isConfigured) {
+        return await GeminiAPI.generateContent(
+          prompt: prompt,
+          temperature: 0.3,
+          maxTokens: 8000,
+        );
       }
+      return await OpenRouterService.getCompletion(prompt);
+    } catch (e) {
+      rethrow;
     }
+  }
 
-    // If no sections found, treat the whole thing as one analysis section
-    if (!hasSections) {
-      return [ContentSection(title: 'Analysis:', content: content)];
-    }
-
-    for (var i = 0; i < lines.length; i++) {
-      final line = lines[i].trim();
-
-      // If line is empty and we're at the end, add current section
-      if (line.isEmpty && i == lines.length - 1 && currentTitle.isNotEmpty) {
-        sections.add(ContentSection(
-          title: currentTitle,
-          content: currentContent.toString().trim(),
-        ));
-        continue;
-      }
-
-      // Skip empty lines at the beginning
-      if (line.isEmpty && currentTitle.isEmpty) {
-        continue;
-      }
-
-      // Check if this line is a section title (ends with colon)
-      // Make sure it's not too long to be a title
-      if (line.endsWith(':') &&
-          line.length < 50 &&
-          (currentTitle.isEmpty ||
-              currentContent.toString().trim().isNotEmpty)) {
-        // Save previous section if we have one
-        if (currentTitle.isNotEmpty) {
-          sections.add(ContentSection(
-            title: currentTitle,
-            content: currentContent.toString().trim(),
-          ));
-        }
-
-        // Start new section
-        currentTitle = line;
-        currentContent = StringBuffer();
-      } else {
-        // Add to current section content
-        if (currentTitle.isNotEmpty) {
-          if (currentContent.isNotEmpty) {
-            currentContent.writeln();
-          }
-          currentContent.write(line);
-        }
-      }
-    }
-
-    // Add the last section if we have one
-    if (currentTitle.isNotEmpty) {
-      sections.add(ContentSection(
-        title: currentTitle,
-        content: currentContent.toString().trim(),
-      ));
-    }
-
-    return sections;
+  void _copyToClipboard() {
+    final contentToCopy = showingTranslation.value && translatedContent.isNotEmpty
+        ? translatedContent
+        : originalContent;
+    
+    Clipboard.setData(ClipboardData(text: contentToCopy));
+    HapticFeedback.lightImpact();
+    
+    Get.snackbar(
+      'Copied to Clipboard',
+      'The analysis has been copied to clipboard.',
+      snackPosition: SnackPosition.BOTTOM,
+      backgroundColor: Get.theme.colorScheme.inverseSurface,
+      colorText: Get.theme.colorScheme.onInverseSurface,
+      margin: EdgeInsets.all(12.w),
+      borderRadius: 12.r,
+      duration: const Duration(seconds: 2),
+    );
   }
 }
+

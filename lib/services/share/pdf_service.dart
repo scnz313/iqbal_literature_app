@@ -20,11 +20,14 @@ class PdfService {
   static const double contentHeight = pageHeight - (margin * 2);
 
   // Text styling constants optimized for Urdu
-  static const double titleFontSize = 26;
-  static const double contentFontSize = 18;
-  static const double footerFontSize = 11;
-  static const double lineHeight = 2.2; // Increased for better Urdu readability
+  static const double titleFontSize = 24;
+  static const double contentFontSize = 16;
+  static const double footerFontSize = 10;
+  static const double lineHeight = 1.8; // Reduced for more natural spacing
   static const String fontFamily = 'JameelNooriNastaleeq';
+
+  // Add a scale factor for high-resolution rendering
+  static const double _imageScaleFactor = 4; // 3x scaling for ~216 DPI
 
   /// Generate and share PDF from poem content
   static Future<void> generateAndSharePdf({
@@ -95,39 +98,86 @@ class PdfService {
     return pdf.save();
   }
 
-  /// Split content into logical pages
+  /// Split content into logical pages using accurate height measurements
   static List<PageData> _splitContentIntoPages(String title, String content) {
     final pages = <PageData>[];
     final lines = content.split('\n');
-    
-    // More conservative line estimates for better Urdu text handling
-    const baseLinesPerPage = 22;
-    final firstPageLines = baseLinesPerPage - (title.isNotEmpty ? 6 : 0); // Account for title space
-    
     int currentIndex = 0;
     int pageNumber = 1;
-    
+
+    // Calculate title height if present
+    double titleHeight = 0;
+    if (pageNumber == 1 && title.isNotEmpty) {
+      final titlePainter = TextPainter(
+        text: TextSpan(
+          text: title,
+          style: const TextStyle(
+            fontSize: titleFontSize,
+            fontWeight: FontWeight.bold,
+            fontFamily: fontFamily,
+          ),
+        ),
+        textDirection: TextDirection.rtl,
+        textAlign: TextAlign.center,
+      );
+      titlePainter.layout(maxWidth: contentWidth);
+      titleHeight = titlePainter.height + 40; // Spacing after title
+    }
+
     while (currentIndex < lines.length) {
-      final isFirstPage = pageNumber == 1;
-      final linesForThisPage = isFirstPage ? firstPageLines : baseLinesPerPage;
-      
-      final endIndex = (currentIndex + linesForThisPage).clamp(0, lines.length);
+      double currentHeight = (pageNumber == 1) ? titleHeight : 40; // Top margin for subsequent pages
+      int endIndex = currentIndex;
+
+      for (int i = currentIndex; i < lines.length; i++) {
+        final line = lines[i];
+        double lineHeightAddition;
+
+        if (line.trim().isEmpty) {
+          lineHeightAddition = contentFontSize * 1.0; // Space for empty lines
+        } else {
+          final linePainter = TextPainter(
+            text: TextSpan(
+              text: line,
+              style: const TextStyle(
+                fontSize: contentFontSize,
+                height: lineHeight,
+                fontFamily: fontFamily,
+              ),
+            ),
+            textDirection: TextDirection.rtl,
+            textAlign: TextAlign.center, // Center align for measurement
+          );
+          linePainter.layout(maxWidth: contentWidth);
+          lineHeightAddition = linePainter.height + (contentFontSize * 0.2); // Inter-line spacing
+        }
+
+        if (currentHeight + lineHeightAddition > contentHeight - 60) { // Reserve space for footer
+          break;
+        }
+
+        currentHeight += lineHeightAddition;
+        endIndex = i + 1;
+      }
+
+      // Prevent infinite loop if a single line is too long
+      if (endIndex == currentIndex) {
+        endIndex = currentIndex + 1;
+      }
+
       final pageLines = lines.sublist(currentIndex, endIndex);
-      
-      // Join lines preserving empty lines for proper poem structure
       final pageContent = pageLines.join('\n');
-      
+
       pages.add(PageData(
-        title: isFirstPage ? title : '',
+        title: (pageNumber == 1) ? title : '',
         content: pageContent,
         pageNumber: pageNumber,
-        isFirstPage: isFirstPage,
+        isFirstPage: pageNumber == 1,
       ));
-      
+
       currentIndex = endIndex;
       pageNumber++;
     }
-    
+
     return pages;
   }
 
@@ -140,6 +190,9 @@ class PdfService {
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder);
 
+    // Increase resolution by scaling the entire canvas
+    canvas.scale(_imageScaleFactor);
+
     // Fill background
     canvas.drawRect(
       Rect.fromLTWH(0, 0, pageWidth, pageHeight),
@@ -151,23 +204,25 @@ class PdfService {
     // Draw title (only on first page)
     if (pageData.title.isNotEmpty && pageData.isFirstPage) {
       yOffset = await _drawTitle(canvas, pageData.title, yOffset);
-      yOffset += 20; // Extra spacing after title
     }
 
-    // Draw content
+    // Draw content (now center aligned)
     yOffset = await _drawContent(canvas, pageData.content, yOffset);
 
     // Draw footer
     await _drawFooter(canvas, pageNumber, totalPages);
 
-    // Convert to image
+    // Convert to high-res image
     final picture = recorder.endRecording();
-    final image = await picture.toImage(pageWidth.toInt(), pageHeight.toInt());
-    final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+    final img = await picture.toImage(
+      (pageWidth * _imageScaleFactor).toInt(),
+      (pageHeight * _imageScaleFactor).toInt(),
+    );
+    final byteData = await img.toByteData(format: ui.ImageByteFormat.png);
 
     // Cleanup
     picture.dispose();
-    image.dispose();
+    img.dispose();
 
     if (byteData == null) {
       throw Exception('Failed to convert page to image');
@@ -176,8 +231,10 @@ class PdfService {
     return byteData.buffer.asUint8List();
   }
 
-  /// Draw title section
+  /// Draw title section - minimalistic version without decorations
   static Future<double> _drawTitle(Canvas canvas, String title, double yOffset) async {
+    if (title.isEmpty) return yOffset;
+
     final titlePainter = TextPainter(
       text: TextSpan(
         text: title,
@@ -193,48 +250,26 @@ class PdfService {
     );
 
     titlePainter.layout(maxWidth: contentWidth);
-    
-    // Center the title properly for RTL text
     final titleX = margin + (contentWidth - titlePainter.width) / 2;
     titlePainter.paint(canvas, Offset(titleX, yOffset));
-    
-    yOffset += titlePainter.height + 15;
 
-    // Draw decorative divider line
-    final dividerY = yOffset;
-    canvas.drawLine(
-      Offset(margin + 20, dividerY),
-      Offset(pageWidth - margin - 20, dividerY),
-      Paint()
-        ..color = Colors.grey.shade600
-        ..strokeWidth = 2,
-    );
-
-    // Add small decorative elements
-    canvas.drawCircle(
-      Offset(pageWidth / 2, dividerY),
-      3,
-      Paint()..color = Colors.grey.shade600,
-    );
-
-    return yOffset + 25;
+    return yOffset + titlePainter.height + 40; // Clean spacing after title
   }
 
-  /// Draw content section
+  /// Draw content section - with adjusted alignment and spacing
   static Future<double> _drawContent(Canvas canvas, String content, double yOffset) async {
-    // Split content into lines for better control
     final lines = content.split('\n');
     double currentY = yOffset;
-    
+
     for (final line in lines) {
       if (line.trim().isEmpty) {
-        currentY += contentFontSize * 0.8; // Add spacing for empty lines
+        currentY += contentFontSize * 1.0;
         continue;
       }
-      
+
       final linePainter = TextPainter(
         text: TextSpan(
-          text: line.trim(),
+          text: line,
           style: const TextStyle(
             fontSize: contentFontSize,
             height: lineHeight,
@@ -243,47 +278,29 @@ class PdfService {
           ),
         ),
         textDirection: TextDirection.rtl,
-        textAlign: TextAlign.right,
+        textAlign: TextAlign.center, // Center alignment
       );
 
       linePainter.layout(maxWidth: contentWidth);
-      
-      // Right-align the content for proper Urdu text alignment
-      final contentX = pageWidth - margin - linePainter.width;
+
+      // Center horizontally within content area
+      final contentX = margin + (contentWidth - linePainter.width) / 2;
       linePainter.paint(canvas, Offset(contentX, currentY));
-      
-      currentY += linePainter.height + (contentFontSize * 0.3); // Add line spacing
+
+      currentY += linePainter.height + (contentFontSize * 0.2);
     }
 
     return currentY;
   }
 
-  /// Draw footer with page information
+  /// Draw footer with page information - minimalistic version
   static Future<void> _drawFooter(Canvas canvas, int pageNumber, int totalPages) async {
-    final footerY = pageHeight - margin + 5;
+    final footerY = pageHeight - margin - footerFontSize;
 
-    // Draw elegant footer separator line
-    canvas.drawLine(
-      Offset(margin + 30, footerY - 25),
-      Offset(pageWidth - margin - 30, footerY - 25),
-      Paint()
-        ..color = Colors.grey.shade400
-        ..strokeWidth = 1,
-    );
-
-    // Add small decorative dots
-    for (int i = 0; i < 3; i++) {
-      canvas.drawCircle(
-        Offset(pageWidth / 2 - 10 + (i * 10), footerY - 25),
-        1,
-        Paint()..color = Colors.grey.shade500,
-      );
-    }
-
-    // Page number (left side in English)
+    // Page number in Urdu (right side)
     final pageNumberPainter = TextPainter(
       text: TextSpan(
-        text: 'صفحہ $pageNumber از $totalPages', // Urdu page numbering
+        text: 'صفحہ $pageNumber از $totalPages',
         style: const TextStyle(
           fontSize: footerFontSize,
           color: Colors.grey,
@@ -294,7 +311,7 @@ class PdfService {
     );
     pageNumberPainter.layout();
     final pageNumberX = pageWidth - margin - pageNumberPainter.width;
-    pageNumberPainter.paint(canvas, Offset(pageNumberX, footerY - 18));
+    pageNumberPainter.paint(canvas, Offset(pageNumberX, footerY));
 
     // App name (left side)
     final appNamePainter = TextPainter(
@@ -309,7 +326,7 @@ class PdfService {
       textDirection: TextDirection.ltr,
     );
     appNamePainter.layout();
-    appNamePainter.paint(canvas, Offset(margin, footerY - 18));
+    appNamePainter.paint(canvas, Offset(margin, footerY));
   }
 
   /// Create temporary file with proper filename

@@ -4,6 +4,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:flutter/services.dart';
 import '../controllers/daily_verse_controller.dart';
 import '../../../utils/markdown_clean.dart';
+import '../../../services/share/background_asset_manager.dart';
 
 class DailyVerseScreen extends GetView<DailyVerseController> {
   const DailyVerseScreen({Key? key}) : super(key: key);
@@ -58,16 +59,16 @@ class DailyVerseScreen extends GetView<DailyVerseController> {
                           end: Alignment.bottomCenter,
                           colors: isDarkMode 
                             ? [
-                                theme.colorScheme.background.withOpacity(0.9),
-                                theme.colorScheme.secondary.withOpacity(0.2),
+                                theme.colorScheme.surface.withValues(alpha: 0.9),
+                                theme.colorScheme.secondary.withValues(alpha: 0.2),
                               ]
                             : [
-                                theme.colorScheme.primaryContainer.withOpacity(0.3),
-                                theme.colorScheme.primary.withOpacity(0.1),
+                                theme.colorScheme.primaryContainer.withValues(alpha: 0.3),
+                                theme.colorScheme.primary.withValues(alpha: 0.1),
                               ],
                         ),
-                        image: const DecorationImage(
-                          image: AssetImage('assets/images/backgrounds/paper_texture_1.png'),
+                        image: DecorationImage(
+                          image: AssetImage(BackgroundAssetManager.getAssetPath('paper_texture_1') ?? 'assets/images/backgrounds/paper_texture_1.png'),
                           fit: BoxFit.cover,
                           opacity: 0.1,
                         ),
@@ -85,8 +86,8 @@ class DailyVerseScreen extends GetView<DailyVerseController> {
                             begin: Alignment.bottomCenter,
                             end: Alignment.topCenter,
                             colors: [
-                              theme.colorScheme.surface.withOpacity(0.8),
-                              theme.colorScheme.surface.withOpacity(0.0),
+                              theme.colorScheme.surface.withValues(alpha: 0.8),
+                              theme.colorScheme.surface.withValues(alpha: 0.0),
                             ],
                           ),
                         ),
@@ -130,7 +131,7 @@ class DailyVerseScreen extends GetView<DailyVerseController> {
                             vertical: 6,
                           ),
                           decoration: BoxDecoration(
-                            color: theme.colorScheme.surfaceVariant.withOpacity(0.5),
+                            color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: Row(
@@ -251,7 +252,7 @@ class DailyVerseScreen extends GetView<DailyVerseController> {
           Icon(
             Icons.auto_awesome,
             size: 64,
-            color: theme.colorScheme.primary.withOpacity(0.5),
+            color: theme.colorScheme.primary.withValues(alpha: 0.5),
           ),
           const SizedBox(height: 16),
           Text(
@@ -300,7 +301,7 @@ class DailyVerseScreen extends GetView<DailyVerseController> {
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.1),
+              color: Colors.black.withValues(alpha: 0.1),
               blurRadius: 20,
               spreadRadius: 0,
               offset: const Offset(0, 4),
@@ -312,12 +313,12 @@ class DailyVerseScreen extends GetView<DailyVerseController> {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
             side: BorderSide(
-              color: theme.colorScheme.primary.withOpacity(0.2),
+              color: theme.colorScheme.primary.withValues(alpha: 0.2),
               width: 1.5,
             ),
           ),
           color: isDarkMode 
-              ? theme.colorScheme.surface.withOpacity(0.8) 
+              ? theme.colorScheme.surface.withValues(alpha: 0.8) 
               : theme.colorScheme.surface,
           child: Padding(
             padding: const EdgeInsets.all(24),
@@ -332,7 +333,7 @@ class DailyVerseScreen extends GetView<DailyVerseController> {
                     vertical: 4,
                   ),
                   decoration: BoxDecoration(
-                    color: theme.colorScheme.primaryContainer.withOpacity(0.7),
+                    color: theme.colorScheme.primaryContainer.withValues(alpha: 0.7),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
@@ -366,7 +367,7 @@ class DailyVerseScreen extends GetView<DailyVerseController> {
                     fontSize: 16,
                     fontStyle: FontStyle.italic,
                     height: 1.6,
-                    color: theme.colorScheme.onSurface.withOpacity(0.8),
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.8),
                   ),
                   textAlign: TextAlign.center,
                 ),
@@ -383,7 +384,7 @@ class DailyVerseScreen extends GetView<DailyVerseController> {
                       'Source:',
                       style: TextStyle(
                         fontSize: 14,
-                        color: theme.colorScheme.onSurface.withOpacity(0.6),
+                        color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -392,7 +393,7 @@ class DailyVerseScreen extends GetView<DailyVerseController> {
                         verse.bookSource,
                         style: TextStyle(
                           fontSize: 14,
-                          color: theme.colorScheme.onSurface.withOpacity(0.8),
+                          color: theme.colorScheme.onSurface.withValues(alpha: 0.8),
                         ),
                         textAlign: TextAlign.end,
                         overflow: TextOverflow.ellipsis,
@@ -413,7 +414,7 @@ class DailyVerseScreen extends GetView<DailyVerseController> {
                           'Context:',
                           style: TextStyle(
                             fontSize: 14,
-                            color: theme.colorScheme.onSurface.withOpacity(0.6),
+                            color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -423,7 +424,7 @@ class DailyVerseScreen extends GetView<DailyVerseController> {
                             verse.context,
                             style: TextStyle(
                               fontSize: 14,
-                              color: theme.colorScheme.onSurface.withOpacity(0.8),
+                              color: theme.colorScheme.onSurface.withValues(alpha: 0.8),
                             ),
                             textAlign: TextAlign.end,
                           ),
@@ -457,7 +458,7 @@ class DailyVerseScreen extends GetView<DailyVerseController> {
                 Text(
                   'AI-Powered Insights',
                   style: theme.textTheme.titleLarge?.copyWith(
-                    color: theme.colorScheme.onBackground,
+                    color: theme.colorScheme.onSurface,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -496,7 +497,7 @@ class DailyVerseScreen extends GetView<DailyVerseController> {
         color: theme.cardColor,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: theme.colorScheme.outline.withOpacity(0.2),
+          color: theme.colorScheme.outline.withValues(alpha: 0.2),
         ),
       ),
       child: Center(
@@ -538,7 +539,7 @@ class DailyVerseScreen extends GetView<DailyVerseController> {
         color: theme.cardColor,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: theme.colorScheme.outline.withOpacity(0.2),
+          color: theme.colorScheme.outline.withValues(alpha: 0.2),
         ),
       ),
       child: Column(
@@ -546,7 +547,7 @@ class DailyVerseScreen extends GetView<DailyVerseController> {
           Icon(
             Icons.psychology,
             size: 48,
-            color: theme.colorScheme.primary.withOpacity(0.5),
+            color: theme.colorScheme.primary.withValues(alpha: 0.5),
           ),
           const SizedBox(height: 16),
           Text(
@@ -620,7 +621,7 @@ class DailyVerseScreen extends GetView<DailyVerseController> {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
         side: BorderSide(
-          color: theme.colorScheme.outline.withOpacity(0.2),
+          color: theme.colorScheme.outline.withValues(alpha: 0.2),
         ),
       ),
       child: Padding(

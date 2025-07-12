@@ -38,31 +38,31 @@ class SearchController extends GetxController {
 
   // Specific result type getters
   List<SearchResult> get bookResults {
-    if (selectedFilter.value == SearchResultType.book ||
-        selectedFilter.value == null) {
-      return searchResults
-          .where((r) => r.type == SearchResultType.book)
-          .toList();
+    final allResults = searchResults.toList();
+    if (selectedFilter.value == SearchResultType.book) {
+      return allResults.where((r) => r.type == SearchResultType.book).toList();
+    } else if (selectedFilter.value == null) {
+      return allResults.where((r) => r.type == SearchResultType.book).toList();
     }
     return [];
   }
 
   List<SearchResult> get poemResults {
-    if (selectedFilter.value == SearchResultType.poem ||
-        selectedFilter.value == null) {
-      return searchResults
-          .where((r) => r.type == SearchResultType.poem)
-          .toList();
+    final allResults = searchResults.toList();
+    if (selectedFilter.value == SearchResultType.poem) {
+      return allResults.where((r) => r.type == SearchResultType.poem).toList();
+    } else if (selectedFilter.value == null) {
+      return allResults.where((r) => r.type == SearchResultType.poem).toList();
     }
     return [];
   }
 
   List<SearchResult> get verseResults {
-    if (selectedFilter.value == SearchResultType.line ||
-        selectedFilter.value == null) {
-      return searchResults
-          .where((r) => r.type == SearchResultType.line)
-          .toList();
+    final allResults = searchResults.toList();
+    if (selectedFilter.value == SearchResultType.line) {
+      return allResults.where((r) => r.type == SearchResultType.line).toList();
+    } else if (selectedFilter.value == null) {
+      return allResults.where((r) => r.type == SearchResultType.line).toList();
     }
     return [];
   }

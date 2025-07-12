@@ -70,7 +70,7 @@ class _LoadingWidgetState extends State<LoadingWidget>
             child: CircularProgressIndicator(
               color: effectiveColor,
               strokeWidth: 3.w,
-              backgroundColor: effectiveColor.withOpacity(0.1),
+              backgroundColor: effectiveColor.withValues(alpha: 0.1),
             ),
           ),
           if (widget.message != null) ...[
@@ -81,7 +81,7 @@ class _LoadingWidgetState extends State<LoadingWidget>
                 widget.message!,
                 key: ValueKey(widget.message),
                 style: AppTextStyles.getBodyStyle(context).copyWith(
-                  color: theme.colorScheme.onSurface.withOpacity(0.7),
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -131,7 +131,7 @@ class CompactLoadingWidget extends StatelessWidget {
       child: CircularProgressIndicator(
         color: effectiveColor,
         strokeWidth: 2.w,
-        backgroundColor: effectiveColor.withOpacity(0.1),
+        backgroundColor: effectiveColor.withValues(alpha: 0.1),
       ),
     );
   }
@@ -158,7 +158,7 @@ class LoadingOverlay extends StatelessWidget {
         if (isLoading)
           Positioned.fill(
             child: Container(
-              color: Colors.black.withOpacity(0.5),
+              color: Colors.black.withValues(alpha: 0.5),
               child: LoadingWidget(
                 message: loadingMessage,
                 showBackground: false,

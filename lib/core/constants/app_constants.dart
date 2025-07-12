@@ -1,11 +1,7 @@
 class AppConstants {
   // App Information
   static const String appName = 'Iqbal Literature';
-  static const String appVersion = '1.1.0';
-
-  // Database
-  static const String databaseName = 'iqbal_literature.db';
-  static const int databaseVersion = 1;
+  static const String appVersion = '2.5.0';
 
   // Cache
   static const int maxCacheSize = 100;

@@ -4,7 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../cache/cache_service.dart';
-import '../../services/api/gemini_api.dart';
+
 
 class OpenRouterService {
   // API Keys and service flags
@@ -13,7 +13,7 @@ class OpenRouterService {
   static final String? _openrouterKey =
       const String.fromEnvironment('OPENROUTER_API_KEY');
   static const String _geminiUrl =
-      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
+     'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
 
   // IMPORTANT: Never commit private API keys to source control.
   // Pass them at build-time using --dart-define or set as environment variables.
@@ -46,42 +46,6 @@ class OpenRouterService {
   // Initialize cache
   static Future<void> init() async {
     _prefs = await SharedPreferences.getInstance();
-  }
-
-  // Poem analysis function using Google Cloud Natural Language API
-  static Future<Map<String, String>> analyzePoem(String text) async {
-    try {
-      final cacheKey = text.hashCode.toString();
-      final cached = await CacheService.getAnalysis(cacheKey);
-      if (cached != null) {
-        debugPrint('📝 Using cached analysis');
-        return cached;
-      }
-
-      // Try Gemini first
-      if (GeminiAPI.isConfigured) {
-        try {
-          debugPrint('📝 Attempting Gemini analysis...');
-          final analysis = await GeminiAPI.analyzePoemContent(text);
-
-          // Cache and return successful analysis
-          Map<String, String> stringAnalysis =
-              analysis.map((key, value) => MapEntry(key, value.toString()));
-          await CacheService.cacheAnalysis(cacheKey, stringAnalysis);
-          return stringAnalysis;
-        } catch (e) {
-          debugPrint('⚠️ Gemini analysis failed: $e');
-        }
-      }
-
-      // Rest of the fallback logic...
-      // ... existing code ...
-    } catch (e) {
-      debugPrint('❌ Critical error: $e');
-      return _getOfflineAnalysis(text);
-    }
-    // Add default return in case all attempts fail
-    return _getOfflineAnalysis(text);
   }
 
   static Future<Map<String, String>> _analyzeWithGemini(String text) async {

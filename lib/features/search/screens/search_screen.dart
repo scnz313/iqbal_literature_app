@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import '../controllers/search_controller.dart' as app_search;
 import '../widgets/search_result_tile.dart';
@@ -14,326 +15,682 @@ class SearchScreen extends GetView<app_search.SearchController> {
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
-      floatingActionButton: _buildScrollToTopButton(),
       body: SafeArea(
         child: Column(
           children: [
-            // Enhanced search header with animated container
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 300),
-              curve: Curves.easeInOut,
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-              decoration: BoxDecoration(
-                color: theme.scaffoldBackgroundColor,
-                borderRadius:
-                    const BorderRadius.vertical(bottom: Radius.circular(24)),
-                boxShadow: [
-                  BoxShadow(
-                    color: theme.shadowColor.withOpacity(0.05),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // Search bar and voice button in an animated container
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildSearchBar(context),
-                      ),
-                      // Voice button with animation
-                      Container(
-                        margin: const EdgeInsets.only(left: 8),
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color: theme.shadowColor.withOpacity(0.08),
-                              blurRadius: 8,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: GetBuilder<app_search.SearchController>(
-                          builder: (ctrl) => IconButton(
-                            icon: AnimatedSwitcher(
-                              duration: const Duration(milliseconds: 300),
-                              child: Icon(
-                                ctrl.isListening.value
-                                    ? Icons.mic
-                                    : Icons.mic_none,
-                                key: ValueKey(ctrl.isListening.value),
-                                color: ctrl.isListening.value
-                                    ? theme.colorScheme.primary
-                                    : theme.iconTheme.color,
-                              ),
-                            ),
-                            onPressed: () async {
-                              // Use haptic feedback
-                              HapticFeedback.mediumImpact();
-                              await ctrl.startVoiceSearch();
-                            },
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  // Enhanced filter chips with proper reactive handling
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: GetBuilder<app_search.SearchController>(
-                      builder: (ctrl) => Row(
-                        children: [
-                          _buildFilterChip(context, 'All', null),
-                          _buildFilterChip(
-                              context, 'Books', SearchResultType.book),
-                          _buildFilterChip(
-                              context, 'Poems', SearchResultType.poem),
-                          _buildFilterChip(
-                              context, 'Verses', SearchResultType.line),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            // Main content area with content based on search state
+            _buildSearchHeader(context, theme),
             Expanded(
               child: GetBuilder<app_search.SearchController>(
-                builder: (ctrl) => _buildContentArea(context),
+                builder: (ctrl) => _buildContentArea(context, theme),
               ),
             ),
           ],
         ),
       ),
+      floatingActionButton: GetBuilder<app_search.SearchController>(
+        builder: (ctrl) => AnimatedSwitcher(
+          duration: const Duration(milliseconds: 300),
+          child: ctrl.showScrollToTop.value && ctrl.searchResults.isNotEmpty
+              ? _buildScrollToTopButton(context, theme)
+              : const SizedBox.shrink(),
+        ),
+      ),
     );
   }
 
-  Widget _buildContentArea(BuildContext context) {
+  Widget _buildScrollToTopButton(BuildContext context, ThemeData theme) {
+    return FloatingActionButton.small(
+      heroTag: "searchScrollToTop",
+      onPressed: () {
+        HapticFeedback.lightImpact();
+        controller.scrollToTop();
+      },
+      backgroundColor: theme.colorScheme.primary,
+      foregroundColor: theme.colorScheme.onPrimary,
+      elevation: 4,
+      child: Icon(
+        Icons.keyboard_arrow_up_rounded,
+        size: 24.w,
+      ),
+    );
+  }
+
+  Widget _buildSearchHeader(BuildContext context, ThemeData theme) {
+    return Container(
+      padding: EdgeInsets.fromLTRB(16.w, 12.h, 16.w, 20.h),
+      decoration: BoxDecoration(
+        color: theme.scaffoldBackgroundColor,
+        boxShadow: [
+          BoxShadow(
+            color: theme.shadowColor.withOpacity(0.08),
+            blurRadius: 12,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          _buildSearchBar(context, theme),
+          SizedBox(height: 20.h),
+          _buildFilterChips(context, theme),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSearchBar(BuildContext context, ThemeData theme) {
+    return Container(
+      height: 58.h,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            theme.cardColor,
+            theme.cardColor.withOpacity(0.95),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(30.r),
+        border: Border.all(
+          color: theme.colorScheme.outline.withOpacity(0.3),
+          width: 1.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: theme.shadowColor.withOpacity(0.12),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+          BoxShadow(
+            color: theme.colorScheme.primary.withOpacity(0.05),
+            blurRadius: 24,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          SizedBox(width: 20.w),
+          GetBuilder<app_search.SearchController>(
+            builder: (ctrl) => AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              padding: EdgeInsets.all(8.w),
+              decoration: BoxDecoration(
+                color: ctrl.searchQuery.isEmpty
+                    ? theme.colorScheme.primary.withOpacity(0.1)
+                    : theme.colorScheme.primary.withOpacity(0.15),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.search_rounded,
+                color: ctrl.searchQuery.isEmpty
+                    ? theme.colorScheme.primary.withOpacity(0.7)
+                    : theme.colorScheme.primary,
+                size: 20.w,
+              ),
+            ),
+          ),
+          SizedBox(width: 16.w),
+          Expanded(
+            child: GetBuilder<app_search.SearchController>(
+              builder: (ctrl) => TextField(
+                controller: ctrl.urduSearchController,
+                onChanged: ctrl.onSearchChanged,
+                textDirection: TextDirection.rtl,
+                textAlign: TextAlign.right,
+                style: TextStyle(
+                  fontSize: 17.sp,
+                  fontFamily: 'JameelNooriNastaleeq',
+                  color: theme.textTheme.bodyLarge?.color,
+                  height: 1.5,
+                  fontWeight: FontWeight.w500,
+                ),
+                decoration: InputDecoration(
+                  hintText: 'اردو میں تلاش کریں...',
+                  hintStyle: TextStyle(
+                    color: theme.hintColor.withOpacity(0.7),
+                    fontFamily: 'JameelNooriNastaleeq',
+                    fontSize: 15.sp,
+                    fontWeight: FontWeight.w400,
+                  ),
+                  hintTextDirection: TextDirection.rtl,
+                  border: InputBorder.none,
+                  isDense: true,
+                ),
+              ),
+            ),
+          ),
+          GetBuilder<app_search.SearchController>(
+            builder: (ctrl) => AnimatedSwitcher(
+              duration: const Duration(milliseconds: 200),
+              child: ctrl.searchQuery.isNotEmpty
+                  ? _buildClearButton(context, theme)
+                  : _buildMicButton(context, theme),
+            ),
+          ),
+          SizedBox(width: 12.w),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildClearButton(BuildContext context, ThemeData theme) {
+    return Container(
+      key: const ValueKey('clear'),
+      margin: EdgeInsets.only(right: 8.w),
+      child: GestureDetector(
+        onTap: () {
+          HapticFeedback.lightImpact();
+          controller.clearSearch();
+        },
+        child: Container(
+          padding: EdgeInsets.all(8.w),
+          decoration: BoxDecoration(
+            color: theme.colorScheme.error.withOpacity(0.1),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(
+            Icons.close_rounded,
+            color: theme.colorScheme.error.withOpacity(0.8),
+            size: 18.w,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMicButton(BuildContext context, ThemeData theme) {
+    return Container(
+      key: const ValueKey('mic'),
+      margin: EdgeInsets.only(right: 8.w),
+      child: GetBuilder<app_search.SearchController>(
+        builder: (ctrl) => GestureDetector(
+          onTap: () async {
+            HapticFeedback.mediumImpact();
+            await ctrl.startVoiceSearch();
+          },
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            padding: EdgeInsets.all(8.w),
+            decoration: BoxDecoration(
+              color: ctrl.isListening.value
+                  ? theme.colorScheme.primary.withOpacity(0.2)
+                  : theme.colorScheme.primary.withOpacity(0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              ctrl.isListening.value
+                  ? Icons.mic_rounded
+                  : Icons.mic_none_rounded,
+              color: ctrl.isListening.value
+                  ? theme.colorScheme.primary
+                  : theme.colorScheme.primary.withOpacity(0.7),
+              size: 18.w,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFilterChips(BuildContext context, ThemeData theme) {
+    return GetBuilder<app_search.SearchController>(
+      builder: (ctrl) => Container(
+        height: 42.h,
+        child: Center(
+          child: Wrap(
+            alignment: WrapAlignment.center,
+            spacing: 12.w,
+            children: [
+              _buildFilterChip(context, theme, 'تمام', null),
+              _buildFilterChip(context, theme, 'کتابیں', SearchResultType.book),
+              _buildFilterChip(context, theme, 'نظمیں', SearchResultType.poem),
+              _buildFilterChip(context, theme, 'اشعار', SearchResultType.line),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFilterChip(BuildContext context, ThemeData theme, String label, SearchResultType? type) {
+    final isSelected = controller.selectedFilter.value == type;
+    
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.selectionClick();
+        controller.setFilter(type);
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeInOut,
+        padding: EdgeInsets.symmetric(
+          horizontal: 16.w,
+          vertical: 8.h,
+        ),
+        decoration: BoxDecoration(
+          color: isSelected 
+              ? theme.colorScheme.primary.withOpacity(0.15)
+              : theme.colorScheme.surface,
+          borderRadius: BorderRadius.circular(20.r),
+          border: Border.all(
+            color: isSelected 
+                ? theme.colorScheme.primary.withOpacity(0.3)
+                : theme.colorScheme.outline.withOpacity(0.2),
+            width: 1,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: theme.shadowColor.withOpacity(0.04),
+              blurRadius: 4,
+              offset: const Offset(0, 1),
+            ),
+          ],
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: isSelected 
+                ? theme.colorScheme.primary
+                : theme.textTheme.bodyMedium?.color?.withOpacity(0.8),
+            fontSize: 12.sp,
+            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+            fontFamily: 'JameelNooriNastaleeq',
+          ),
+          textDirection: TextDirection.rtl,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildContentArea(BuildContext context, ThemeData theme) {
     final query = controller.searchQuery;
     final isLoading = controller.isLoading.value;
     final hasResults = controller.searchResults.isNotEmpty;
 
-    if (query.isEmpty) {
-      return _buildRecentSearches(context);
-    } else if (isLoading) {
-      return _buildLoadingState(context);
-    } else if (!hasResults) {
-      return _buildEmptyState(context);
-    } else {
-      return _buildSearchResults(context);
-    }
-  }
-
-  Widget _buildFilterChip(
-      BuildContext context, String label, SearchResultType? type) {
-    final theme = Theme.of(context);
-    final isSelected = controller.selectedFilter.value == type;
-
-    return Padding(
-      padding: const EdgeInsets.only(right: 8),
-      child: FilterChip(
-        label: Text(
-          label,
-          style: TextStyle(
-            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-            color: isSelected
-                ? theme.colorScheme.onPrimary
-                : theme.textTheme.bodyMedium?.color,
-          ),
-        ),
-        selected: isSelected,
-        onSelected: (_) => controller.setFilter(type),
-        backgroundColor: Colors.transparent,
-        selectedColor: theme.colorScheme.primary,
-        checkmarkColor: theme.colorScheme.onPrimary,
-        showCheckmark: false,
-        elevation: isSelected ? 2 : 0,
-        shape: StadiumBorder(
-          side: BorderSide(
-            color: isSelected ? theme.colorScheme.primary : theme.dividerColor,
-            width: isSelected ? 0 : 1,
-          ),
-        ),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 400),
+      child: LayoutBuilder(
+        key: ValueKey('$query-$isLoading-$hasResults'),
+        builder: (context, constraints) {
+          if (query.isEmpty) {
+            return _buildEmptySearchState(context, theme);
+          } else if (isLoading) {
+            return _buildLoadingState(context, theme);
+          } else if (!hasResults) {
+            return _buildNoResultsState(context, theme);
+          } else {
+            return _buildSearchResults(context, theme);
+          }
+        },
       ),
     );
   }
 
-  Widget _buildRecentSearches(BuildContext context) {
-    final theme = Theme.of(context);
-    final recentSearches = controller.recentSearches;
-
-    if (recentSearches.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.history,
-              size: 64,
-              color: theme.hintColor.withOpacity(0.3),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'No recent searches',
-              style: theme.textTheme.titleMedium?.copyWith(
-                color: theme.hintColor,
+  Widget _buildEmptySearchState(BuildContext context, ThemeData theme) {
+    return SingleChildScrollView(
+      padding: EdgeInsets.symmetric(horizontal: 16.w),
+      child: Column(
+        children: [
+          SizedBox(height: 60.h),
+          Container(
+            width: 120.w,
+            height: 120.w,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  theme.colorScheme.primary.withOpacity(0.2),
+                  theme.colorScheme.primary.withOpacity(0.1),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
               ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Your search history will appear here',
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.hintColor,
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    return CustomScrollView(
-      slivers: [
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.primary.withOpacity(0.1),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    Icons.history,
-                    color: theme.colorScheme.primary,
-                    size: 20,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  'Recent Searches',
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const Spacer(),
-                TextButton.icon(
-                  onPressed: () async {
-                    // Use haptic feedback
-                    HapticFeedback.lightImpact();
-
-                    final success = await controller.clearRecentSearches();
-                    if (success) {
-                      Get.snackbar(
-                        'Cleared',
-                        'Recent searches have been cleared',
-                        snackPosition: SnackPosition.BOTTOM,
-                        duration: const Duration(seconds: 2),
-                      );
-                    }
-                  },
-                  icon: const Icon(Icons.delete_outline, size: 18),
-                  label: const Text('Clear All'),
-                  style: TextButton.styleFrom(
-                    foregroundColor: theme.colorScheme.error,
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                  ),
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: theme.colorScheme.primary.withOpacity(0.15),
+                  blurRadius: 24,
+                  offset: const Offset(0, 8),
                 ),
               ],
             ),
-          ),
-        ),
-        SliverPadding(
-          padding: const EdgeInsets.all(16),
-          sliver: SliverToBoxAdapter(
-            child: Wrap(
-              spacing: 12,
-              runSpacing: 12,
-              children: recentSearches
-                  .map((search) => _buildSearchChip(context, search))
-                  .toList(),
+            child: Icon(
+              Icons.search_rounded,
+              size: 60.w,
+              color: theme.colorScheme.primary.withOpacity(0.8),
             ),
           ),
-        ),
-      ],
+          SizedBox(height: 32.h),
+          Text(
+            'ابتدائی تلاش',
+            style: TextStyle(
+              fontSize: 24.sp,
+              fontWeight: FontWeight.w700,
+              color: theme.textTheme.titleLarge?.color,
+              fontFamily: 'JameelNooriNastaleeq',
+            ),
+            textDirection: TextDirection.rtl,
+          ),
+          SizedBox(height: 12.h),
+          Text(
+            'کتابیں، نظمیں اور اشعار تلاش کریں',
+            style: TextStyle(
+              fontSize: 16.sp,
+              color: theme.hintColor.withOpacity(0.9),
+              fontFamily: 'JameelNooriNastaleeq',
+              height: 1.4,
+            ),
+            textDirection: TextDirection.rtl,
+          ),
+          if (controller.recentSearches.isNotEmpty) ...[
+            SizedBox(height: 40.h),
+            _buildRecentSearches(context, theme),
+          ],
+          SizedBox(height: 40.h),
+        ],
+      ),
     );
   }
 
-  Widget _buildSearchChip(BuildContext context, String search) {
-    final theme = Theme.of(context);
-    final isUrdu = search.contains(RegExp(r'[\u0600-\u06FF]'));
-
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: () {
-          // Use haptic feedback
-          HapticFeedback.selectionClick();
-          controller.applyRecentSearch(search);
-        },
-        borderRadius: BorderRadius.circular(20),
-        child: Chip(
-          label: Container(
-            constraints: BoxConstraints(
-              maxWidth: MediaQuery.of(context).size.width * 0.6,
-            ),
-            child: Text(
-              search,
-              style: TextStyle(
-                fontFamily: isUrdu ? 'JameelNooriNastaleeq' : null,
-                fontSize: isUrdu ? 18 : 14,
-                color: theme.textTheme.bodyLarge?.color,
+  Widget _buildRecentSearches(BuildContext context, ThemeData theme) {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(20.w),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            theme.cardColor,
+            theme.cardColor.withOpacity(0.95),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16.r),
+        border: Border.all(
+          color: theme.dividerColor.withOpacity(0.15),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: theme.shadowColor.withOpacity(0.1),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              TextButton.icon(
+                onPressed: () async {
+                  HapticFeedback.lightImpact();
+                  await controller.clearRecentSearches();
+                },
+                icon: Icon(
+                  Icons.clear_all_rounded,
+                  size: 16.w,
+                  color: theme.colorScheme.error.withOpacity(0.7),
+                ),
+                label: Text(
+                  'صاف کریں',
+                  style: TextStyle(
+                    fontSize: 13.sp,
+                    fontFamily: 'JameelNooriNastaleeq',
+                    color: theme.colorScheme.error.withOpacity(0.7),
+                  ),
+                ),
               ),
-              overflow: TextOverflow.ellipsis,
-              maxLines: 1,
-              textDirection: isUrdu ? TextDirection.rtl : TextDirection.ltr,
-            ),
+              Row(
+                children: [
+                  Text(
+                    'حالیہ تلاش',
+                    style: TextStyle(
+                      fontSize: 18.sp,
+                      fontWeight: FontWeight.w600,
+                      color: theme.textTheme.titleMedium?.color,
+                      fontFamily: 'JameelNooriNastaleeq',
+                    ),
+                    textDirection: TextDirection.rtl,
+                  ),
+                  SizedBox(width: 8.w),
+                  Container(
+                    padding: EdgeInsets.all(6.w),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.primary.withOpacity(0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.history_rounded,
+                      size: 16.w,
+                      color: theme.colorScheme.primary,
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
-          backgroundColor: theme.cardColor,
-          side: BorderSide(color: theme.dividerColor),
-          deleteIcon: Icon(
-            Icons.close,
-            size: 16,
-            color: theme.colorScheme.onSurface.withOpacity(0.7),
-          ),
-          onDeleted: () async {
-            // Use haptic feedback
-            HapticFeedback.lightImpact();
-
-            final success = await controller.removeRecentSearch(search);
-            if (success) {
-              Get.snackbar(
-                'Removed',
-                'Search "$search" has been removed',
-                snackPosition: SnackPosition.BOTTOM,
-                duration: const Duration(seconds: 2),
+          SizedBox(height: 16.h),
+          Wrap(
+            alignment: WrapAlignment.end,
+            spacing: 10.w,
+            runSpacing: 10.h,
+            children: controller.recentSearches.take(4).map((search) {
+              final displaySearch = search.length > 20 ? '${search.substring(0, 17)}...' : search;
+              return GestureDetector(
+                onTap: () {
+                  HapticFeedback.selectionClick();
+                  controller.applyRecentSearch(search);
+                },
+                child: Container(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: 16.w,
+                    vertical: 8.h,
+                  ),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.4),
+                    borderRadius: BorderRadius.circular(20.r),
+                    border: Border.all(
+                      color: theme.dividerColor.withOpacity(0.3),
+                      width: 1,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: theme.shadowColor.withOpacity(0.05),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.history_rounded,
+                        size: 14.w,
+                        color: theme.hintColor,
+                      ),
+                      SizedBox(width: 6.w),
+                      Text(
+                        displaySearch,
+                        style: TextStyle(
+                          fontSize: 13.sp,
+                          fontFamily: 'JameelNooriNastaleeq',
+                          color: theme.textTheme.bodyMedium?.color,
+                          fontWeight: FontWeight.w500,
+                        ),
+                        textDirection: TextDirection.rtl,
+                      ),
+                    ],
+                  ),
+                ),
               );
-            }
-          },
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-          elevation: 0,
-          shadowColor: Colors.transparent,
+            }).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLoadingState(BuildContext context, ThemeData theme) {
+    return SingleChildScrollView(
+      padding: EdgeInsets.symmetric(horizontal: 16.w),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          minHeight: MediaQuery.of(context).size.height * 0.6,
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 80.w,
+              height: 80.w,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    theme.colorScheme.primary.withOpacity(0.2),
+                    theme.colorScheme.primary.withOpacity(0.1),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                shape: BoxShape.circle,
+              ),
+              child: Center(
+                child: SizedBox(
+                  width: 40.w,
+                  height: 40.w,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 3,
+                    backgroundColor: theme.colorScheme.primary.withOpacity(0.2),
+                    valueColor: AlwaysStoppedAnimation<Color>(theme.colorScheme.primary),
+                  ),
+                ),
+              ),
+            ),
+            SizedBox(height: 24.h),
+            Text(
+              'تلاش جاری ہے...',
+              style: TextStyle(
+                fontSize: 18.sp,
+                fontWeight: FontWeight.w600,
+                color: theme.textTheme.titleMedium?.color,
+                fontFamily: 'JameelNooriNastaleeq',
+              ),
+              textDirection: TextDirection.rtl,
+            ),
+            SizedBox(height: 8.h),
+            Text(
+              'براہ کرم انتظار کریں',
+              style: TextStyle(
+                fontSize: 14.sp,
+                color: theme.hintColor,
+                fontFamily: 'JameelNooriNastaleeq',
+              ),
+              textDirection: TextDirection.rtl,
+            ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildSearchResults(BuildContext context) {
-    final theme = Theme.of(context);
-    final selectedFilter = controller.selectedFilter.value;
-    final screenWidth = MediaQuery.of(context).size.width;
+  Widget _buildNoResultsState(BuildContext context, ThemeData theme) {
+    return SingleChildScrollView(
+      padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 20.h),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.start,
+        children: [
+          SizedBox(height: 60.h),
+          Container(
+            width: 100.w,
+            height: 100.w,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  theme.colorScheme.error.withOpacity(0.2),
+                  theme.colorScheme.error.withOpacity(0.1),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: theme.colorScheme.error.withOpacity(0.15),
+                  blurRadius: 24,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            child: Icon(
+              Icons.search_off_rounded,
+              size: 50.w,
+              color: theme.colorScheme.error.withOpacity(0.8),
+            ),
+          ),
+          SizedBox(height: 24.h),
+          Text(
+            'کوئی نتیجہ نہیں ملا',
+            style: TextStyle(
+              fontSize: 20.sp,
+              fontWeight: FontWeight.w700,
+              color: theme.textTheme.titleLarge?.color,
+              fontFamily: 'JameelNooriNastaleeq',
+            ),
+            textDirection: TextDirection.rtl,
+          ),
+          SizedBox(height: 12.h),
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: 20.w),
+            child: Text(
+              'مختلف الفاظ آزمائیں یا فلٹرز تبدیل کریں',
+              style: TextStyle(
+                fontSize: 15.sp,
+                color: theme.hintColor,
+                fontFamily: 'JameelNooriNastaleeq',
+                height: 1.4,
+              ),
+              textDirection: TextDirection.rtl,
+              textAlign: TextAlign.center,
+            ),
+          ),
+          SizedBox(height: 32.h),
+          ElevatedButton.icon(
+            onPressed: () {
+              HapticFeedback.lightImpact();
+              controller.clearSearch();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: theme.colorScheme.primary,
+              foregroundColor: theme.colorScheme.onPrimary,
+              padding: EdgeInsets.symmetric(horizontal: 24.w, vertical: 12.h),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(24.r),
+              ),
+              elevation: 4,
+            ),
+            icon: Icon(
+              Icons.refresh_rounded, 
+              size: 18.w,
+            ),
+            label: Text(
+              'صاف کریں',
+              style: TextStyle(
+                fontSize: 15.sp,
+                fontFamily: 'JameelNooriNastaleeq',
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          SizedBox(height: 40.h),
+        ],
+      ),
+    );
+  }
 
+  Widget _buildSearchResults(BuildContext context, ThemeData theme) {
     return NotificationListener<ScrollNotification>(
       onNotification: (notification) {
         if (notification is ScrollUpdateNotification) {
@@ -341,514 +698,212 @@ class SearchScreen extends GetView<app_search.SearchController> {
         }
         return false;
       },
-      child: ListView(
+      child: CustomScrollView(
         controller: controller.scrollController,
-        padding: const EdgeInsets.only(bottom: 80), // Add padding for FAB
-        children: [
-          // Books section - only show if applicable
-          if (selectedFilter == null || selectedFilter == SearchResultType.book)
-            if (controller.bookResults.isNotEmpty)
-              _buildResultSection(context, 'Books', controller.bookResults,
-                  Icons.book_outlined),
-
-          // Poems section - only show if applicable
-          if (selectedFilter == null || selectedFilter == SearchResultType.poem)
-            if (controller.poemResults.isNotEmpty)
-              _buildResultSection(context, 'Poems', controller.poemResults,
-                  Icons.article_outlined),
-
-          // Verses section - only show if applicable
-          if (selectedFilter == null || selectedFilter == SearchResultType.line)
-            if (controller.verseResults.isNotEmpty)
-              _buildResultSection(context, 'Verses', controller.verseResults,
-                  Icons.format_quote_outlined),
-
-          // Show message when filter is applied but no results match that filter
-          if ((selectedFilter != null) &&
-              ((selectedFilter == SearchResultType.book &&
-                      controller.bookResults.isEmpty) ||
-                  (selectedFilter == SearchResultType.poem &&
-                      controller.poemResults.isEmpty) ||
-                  (selectedFilter == SearchResultType.line &&
-                      controller.verseResults.isEmpty)))
-            Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24.0),
-                child: Column(
-                  children: [
-                    Icon(
-                      Icons.filter_list_off,
-                      size: 48,
-                      color: theme.colorScheme.primary.withOpacity(0.5),
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'No results match this filter',
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        color: theme.hintColor,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    OutlinedButton.icon(
-                      onPressed: () {
-                        // Use haptic feedback
-                        HapticFeedback.selectionClick();
-                        controller.setFilter(null);
-                      },
-                      icon: const Icon(Icons.filter_alt_off),
-                      label: const Text('Clear Filter'),
-                      style: OutlinedButton.styleFrom(
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                      ),
-                    ),
+        physics: const BouncingScrollPhysics(),
+        slivers: [
+          // Results summary
+          SliverToBoxAdapter(
+            child: Container(
+              margin: EdgeInsets.fromLTRB(16.w, 12.h, 16.w, 16.h),
+              padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    theme.colorScheme.primary.withOpacity(0.1),
+                    theme.colorScheme.primary.withOpacity(0.05),
                   ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(12.r),
+                border: Border.all(
+                  color: theme.colorScheme.primary.withOpacity(0.2),
+                  width: 1,
                 ),
               ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildResultSection(BuildContext context, String title,
-      List<SearchResult> results, IconData icon) {
-    final theme = Theme.of(context);
-    final screenWidth = MediaQuery.of(context).size.width;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Section header with icon, title and count
-        Padding(
-          padding: const EdgeInsets.fromLTRB(20, 24, 20, 8),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.primary.withOpacity(0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  icon,
-                  color: theme.colorScheme.primary,
-                  size: 20,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  title,
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.primary.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  '${results.length}',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.primary,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-
-        // Results list with limited animations for better performance
-        ...results.take(30).map((result) => Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: SizedBox(
-                width: screenWidth - 32,
-                child: SearchResultTile(result: result),
-              ),
-            )),
-
-        const SizedBox(height: 8), // Add some space after the section
-      ],
-    );
-  }
-
-  Widget _buildSearchBar(BuildContext context) {
-    final theme = Theme.of(context);
-    final screenWidth = MediaQuery.of(context).size.width;
-    final isMobile = screenWidth < 720;
-    debugPrint('Screen Width: $screenWidth, isMobile: $isMobile');
-
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 300),
-      height: 56,
-      decoration: BoxDecoration(
-        color: theme.cardColor,
-        borderRadius: BorderRadius.circular(28),
-        boxShadow: [
-          BoxShadow(
-            color: theme.shadowColor.withOpacity(0.1),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(28),
-        child: Material(
-          color: Colors.transparent,
-          child: Row(
-            children: [
-              const SizedBox(width: 16),
-              // Search icon with animated color
-              GetBuilder<app_search.SearchController>(
-                builder: (ctrl) => Icon(
-                  Icons.search,
-                  color: ctrl.searchQuery.isEmpty
-                      ? theme.hintColor
-                      : theme.colorScheme.primary,
-                ),
-              ),
-              const SizedBox(width: 12),
-              // Search fields
-              Expanded(
-                child: isMobile
-                    ? _buildMobileSearchFields(context)
-                    : _buildDesktopSearchFields(context),
-              ),
-              // Clear button that appears when there is text
-              GetBuilder<app_search.SearchController>(
-                builder: (ctrl) => ctrl.searchQuery.isEmpty
-                    ? const SizedBox(width: 16)
-                    : IconButton(
-                        icon: const Icon(Icons.close),
-                        onPressed: () {
-                          // Use haptic feedback
-                          HapticFeedback.lightImpact();
-                          ctrl.clearSearch();
-                        },
-                        color: theme.hintColor,
-                        iconSize: 18,
-                        splashRadius: 20,
-                      ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildMobileSearchFields(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return GetBuilder<app_search.SearchController>(
-      builder: (ctrl) {
-        final isUrduMode = ctrl.isUrduMode.value;
-
-        return Row(
-          children: [
-            Expanded(
-              child: TextField(
-                controller: isUrduMode
-                    ? ctrl.urduSearchController
-                    : ctrl.searchController,
-                onChanged: ctrl.onSearchChanged,
-                textDirection:
-                    isUrduMode ? TextDirection.rtl : TextDirection.ltr,
-                textAlign: isUrduMode ? TextAlign.right : TextAlign.left,
-                style: TextStyle(
-                  fontSize: isUrduMode ? 18 : 16,
-                  fontFamily: isUrduMode ? 'JameelNooriNastaleeq' : null,
-                  color: theme.textTheme.bodyLarge?.color,
-                ),
-                decoration: InputDecoration(
-                  hintText:
-                      isUrduMode ? 'اردو میں تلاش...' : 'Search in English...',
-                  hintStyle: TextStyle(
-                    color: theme.hintColor,
-                    fontFamily: isUrduMode ? 'JameelNooriNastaleeq' : null,
-                  ),
-                  hintTextDirection:
-                      isUrduMode ? TextDirection.rtl : TextDirection.ltr,
-                  border: InputBorder.none,
-                ),
-              ),
-            ),
-            // Language toggle button
-            Material(
-              color: Colors.transparent,
-              child: InkWell(
-                onTap: () {
-                  // Use haptic feedback
-                  HapticFeedback.mediumImpact();
-                  ctrl.toggleSearchLanguage();
-                },
-                borderRadius: BorderRadius.circular(20),
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.primary.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
                     children: [
                       Icon(
-                        isUrduMode ? Icons.language : Icons.translate,
+                        Icons.analytics_rounded,
+                        size: 16.w,
                         color: theme.colorScheme.primary,
-                        size: 16,
                       ),
-                      const SizedBox(width: 4),
+                      SizedBox(width: 6.w),
                       Text(
-                        isUrduMode ? 'English' : 'اردو',
+                        'نتائج',
                         style: TextStyle(
+                          fontSize: 13.sp,
                           color: theme.colorScheme.primary,
-                          fontFamily:
-                              !isUrduMode ? 'JameelNooriNastaleeq' : null,
-                          fontSize: !isUrduMode ? 16 : 14,
+                          fontWeight: FontWeight.w600,
+                          fontFamily: 'JameelNooriNastaleeq',
                         ),
                       ),
                     ],
                   ),
-                ),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  Widget _buildDesktopSearchFields(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        // If width is too small, use the mobile layout instead
-        if (constraints.maxWidth < 400) {
-          return _buildMobileSearchFields(context);
-        }
-
-        return Row(
-          children: [
-            // English search field
-            Expanded(
-              child: TextField(
-                controller: controller.searchController,
-                onChanged: controller.onSearchChanged,
-                textDirection: TextDirection.ltr,
-                textAlign: TextAlign.left,
-                style: TextStyle(
-                  fontSize: 16,
-                  color: theme.textTheme.bodyLarge?.color,
-                ),
-                decoration: InputDecoration(
-                  hintText: 'Search in English...',
-                  hintStyle: TextStyle(color: theme.hintColor),
-                  border: InputBorder.none,
-                ),
-              ),
-            ),
-            // Vertical divider with padding
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              child: VerticalDivider(
-                color: theme.dividerColor,
-                width: 32,
-              ),
-            ),
-            // Urdu search field
-            Expanded(
-              child: TextField(
-                controller: controller.urduSearchController,
-                onChanged: controller.onSearchChanged,
-                textDirection: TextDirection.rtl,
-                textAlign: TextAlign.right,
-                style: TextStyle(
-                  fontSize: 18,
-                  fontFamily: 'JameelNooriNastaleeq',
-                  color: theme.textTheme.bodyLarge?.color,
-                ),
-                decoration: InputDecoration(
-                  hintText: 'اردو میں تلاش...',
-                  hintTextDirection: TextDirection.rtl,
-                  hintStyle: TextStyle(
-                    color: theme.hintColor,
-                    fontFamily: 'JameelNooriNastaleeq',
-                  ),
-                  border: InputBorder.none,
-                ),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  Widget _buildEmptyState(BuildContext context) {
-    final theme = Theme.of(context);
-    final isUrduMode = controller.isUrduMode.value;
-
-    return Center(
-      child: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.error.withOpacity(0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  Icons.search_off_rounded,
-                  size: 64,
-                  color: theme.colorScheme.error.withOpacity(0.7),
-                ),
-              ),
-              const SizedBox(height: 24),
-              Text(
-                'No results found',
-                style: theme.textTheme.titleLarge?.copyWith(
-                  color: theme.colorScheme.onSurface,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 12),
-              SizedBox(
-                width: MediaQuery.of(context).size.width * 0.8,
-                child: Text(
-                  'Try different keywords or switch language',
-                  style: theme.textTheme.bodyLarge?.copyWith(
-                    color: theme.hintColor,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ),
-              const SizedBox(height: 32),
-              Wrap(
-                spacing: 12,
-                runSpacing: 12,
-                alignment: WrapAlignment.center,
-                children: [
-                  ElevatedButton.icon(
-                    onPressed: () {
-                      // Use haptic feedback
-                      HapticFeedback.mediumImpact();
-                      controller.clearSearch();
-                    },
-                    icon: const Icon(Icons.refresh),
-                    label: const Text('Clear'),
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 12),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(20)),
+                  Container(
+                    padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 4.h),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.primary,
+                      borderRadius: BorderRadius.circular(12.r),
                     ),
-                  ),
-                  OutlinedButton.icon(
-                    onPressed: () {
-                      // Use haptic feedback
-                      HapticFeedback.mediumImpact();
-                      controller.toggleSearchLanguage();
-                    },
-                    icon: Icon(isUrduMode ? Icons.language : Icons.translate),
-                    label: Text(isUrduMode ? 'Try English' : 'Try Urdu'),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 12),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(20)),
+                    child: Text(
+                      '${controller.searchResults.length}',
+                      style: TextStyle(
+                        fontSize: 14.sp,
+                        color: theme.colorScheme.onPrimary,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ),
                 ],
               ),
-            ],
+            ),
           ),
-        ),
-      ),
-    );
-  }
+          
+          // Books section
+          if (controller.bookResults.isNotEmpty)
+            _buildResultSection(
+              context, 
+              theme,
+              'کتابیں', 
+              controller.bookResults, 
+              Icons.book_rounded,
+            ),
 
-  Widget _buildLoadingState(BuildContext context) {
-    final theme = Theme.of(context);
+          // Poems section
+          if (controller.poemResults.isNotEmpty)
+            _buildResultSection(
+              context, 
+              theme,
+              'نظمیں', 
+              controller.poemResults, 
+              Icons.article_rounded,
+            ),
 
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          SizedBox(
-            width: 80,
-            height: 80,
-            child: CircularProgressIndicator(
-              strokeWidth: 3,
-              backgroundColor: theme.colorScheme.primary.withOpacity(0.2),
-              valueColor:
-                  AlwaysStoppedAnimation<Color>(theme.colorScheme.primary),
+          // Lines section
+          if (controller.verseResults.isNotEmpty)
+            _buildResultSection(
+              context, 
+              theme,
+              'اشعار', 
+              controller.verseResults, 
+              Icons.format_quote_rounded,
             ),
-          ),
-          const SizedBox(height: 24),
-          Text(
-            'Searching...',
-            style: theme.textTheme.titleMedium,
-          ),
-          const SizedBox(height: 8),
-          Container(
-            constraints: BoxConstraints(
-              maxWidth: MediaQuery.of(context).size.width * 0.8,
-            ),
-            child: GetBuilder<app_search.SearchController>(
-              builder: (ctrl) => Text(
-                'Looking for "${ctrl.searchQuery}"',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.hintColor,
-                ),
-                textAlign: TextAlign.center,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
+
+          // Bottom padding
+          SliverToBoxAdapter(
+            child: SizedBox(height: 100.h),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildScrollToTopButton() {
-    return GetBuilder<app_search.SearchController>(
-      builder: (ctrl) {
-        final visible = ctrl.showScrollToTop.value;
-
-        return AnimatedScale(
-          scale: visible ? 1.0 : 0.0,
-          duration: const Duration(milliseconds: 200),
-          child: AnimatedOpacity(
-            opacity: visible ? 1.0 : 0.0,
-            duration: const Duration(milliseconds: 200),
-            child: FloatingActionButton(
-              onPressed: () {
-                // Use haptic feedback
-                HapticFeedback.selectionClick();
-                ctrl.scrollToTop();
-              },
-              mini: true,
-              child: const Icon(Icons.arrow_upward),
+  Widget _buildResultSection(
+    BuildContext context,
+    ThemeData theme,
+    String title,
+    List<SearchResult> results,
+    IconData icon,
+  ) {
+    return SliverToBoxAdapter(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Container(
+            margin: EdgeInsets.fromLTRB(16.w, 20.h, 16.w, 12.h),
+            padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  theme.cardColor,
+                  theme.cardColor.withOpacity(0.95),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(12.r),
+              border: Border.all(
+                color: theme.dividerColor.withOpacity(0.15),
+                width: 1,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: theme.shadowColor.withOpacity(0.08),
+                  blurRadius: 12,
+                  offset: const Offset(0, 3),
+                ),
+              ],
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Container(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: 12.w,
+                    vertical: 4.h,
+                  ),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primary.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(12.r),
+                  ),
+                  child: Text(
+                    '${results.length}',
+                    style: TextStyle(
+                      fontSize: 13.sp,
+                      fontWeight: FontWeight.w700,
+                      color: theme.colorScheme.primary,
+                    ),
+                  ),
+                ),
+                Row(
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        fontSize: 18.sp,
+                        fontWeight: FontWeight.w700,
+                        color: theme.textTheme.titleMedium?.color,
+                        fontFamily: 'JameelNooriNastaleeq',
+                      ),
+                      textDirection: TextDirection.rtl,
+                    ),
+                    SizedBox(width: 12.w),
+                    Container(
+                      padding: EdgeInsets.all(8.w),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            theme.colorScheme.primary.withOpacity(0.2),
+                            theme.colorScheme.primary.withOpacity(0.1),
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(10.r),
+                      ),
+                      child: Icon(
+                        icon,
+                        color: theme.colorScheme.primary,
+                        size: 18.w,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
-        );
-      },
+          ...results.map((result) => Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 4.h),
+            child: SearchResultTile(result: result),
+          )),
+          SizedBox(height: 12.h),
+        ],
+      ),
     );
   }
 }

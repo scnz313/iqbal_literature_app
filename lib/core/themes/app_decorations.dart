@@ -38,18 +38,18 @@ class AppDecorations {
       borderRadius: BorderRadius.circular(16.r),
       color: Theme.of(context).colorScheme.surface,
       border: Border.all(
-        color: Theme.of(context).colorScheme.outline.withOpacity(0.12),
+        color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.12),
         width: 1,
       ),
       boxShadow: isDark ? [] : [
         BoxShadow(
-          color: Colors.black.withOpacity(0.06),
+          color: Colors.black.withValues(alpha: 0.06),
           blurRadius: 12,
           offset: const Offset(0, 4),
           spreadRadius: 0,
         ),
         BoxShadow(
-          color: Colors.black.withOpacity(0.04),
+          color: Colors.black.withValues(alpha: 0.04),
           blurRadius: 6,
           offset: const Offset(0, 2),
           spreadRadius: 0,
@@ -166,12 +166,12 @@ class AppDecorations {
       borderRadius: BorderRadius.circular(16.r),
       color: Theme.of(context).colorScheme.surface,
       border: Border.all(
-        color: Theme.of(context).colorScheme.outline.withOpacity(0.1),
+        color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.1),
         width: 1,
       ),
       boxShadow: isDark ? [] : [
         BoxShadow(
-          color: Colors.black.withOpacity(0.04),
+          color: Colors.black.withValues(alpha: 0.04),
           blurRadius: 8,
           offset: const Offset(0, 2),
         ),
@@ -185,18 +185,18 @@ class AppDecorations {
       borderRadius: BorderRadius.circular(20.r),
       color: Theme.of(context).colorScheme.surface,
       border: Border.all(
-        color: Theme.of(context).colorScheme.outline.withOpacity(0.15),
+        color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.15),
         width: 1,
       ),
       boxShadow: isDark ? [] : [
         BoxShadow(
-          color: Colors.black.withOpacity(0.08),
+          color: Colors.black.withValues(alpha: 0.08),
           blurRadius: 16,
           offset: const Offset(0, 6),
           spreadRadius: 0,
         ),
         BoxShadow(
-          color: Colors.black.withOpacity(0.04),
+          color: Colors.black.withValues(alpha: 0.04),
           blurRadius: 8,
           offset: const Offset(0, 2),
           spreadRadius: 0,
@@ -229,12 +229,12 @@ class AppDecorations {
         top: Radius.circular(24.r),
       ),
       border: Border.all(
-        color: Theme.of(context).colorScheme.outline.withOpacity(0.1),
+        color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.1),
         width: 1,
       ),
       boxShadow: isDark ? [] : [
         BoxShadow(
-          color: Colors.black.withOpacity(0.1),
+          color: Colors.black.withValues(alpha: 0.1),
           blurRadius: 20,
           offset: const Offset(0, -8),
           spreadRadius: 0,
@@ -267,14 +267,14 @@ class AppDecorations {
   // Icon Container Decorations
   static BoxDecoration iconContainerDecoration(BuildContext context, Color color) {
     return BoxDecoration(
-      color: color.withOpacity(0.12),
+      color: color.withValues(alpha: 0.12),
       borderRadius: BorderRadius.circular(12.r),
     );
   }
 
   static BoxDecoration circularIconDecoration(BuildContext context, Color color) {
     return BoxDecoration(
-      color: color.withOpacity(0.12),
+      color: color.withValues(alpha: 0.12),
       shape: BoxShape.circle,
     );
   }
@@ -285,7 +285,7 @@ class AppDecorations {
       color: Theme.of(context).colorScheme.surface,
       border: Border(
         bottom: BorderSide(
-          color: Theme.of(context).colorScheme.outline.withOpacity(0.1),
+          color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.1),
           width: 1,
         ),
       ),

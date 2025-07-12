@@ -1,9 +1,6 @@
 import 'package:get/get.dart';
 import 'package:flutter/material.dart';
-import '../../books/screens/books_screen.dart';
-import '../../poems/screens/poems_screen.dart';
-import '../../search/screens/search_screen.dart';
-import '../../settings/screens/settings_screen.dart';
+
 import '../../../data/models/book/book.dart';
 import '../../../data/repositories/book_repository.dart';
 import '../../../data/repositories/poem_repository.dart';

@@ -2,13 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
+import 'package:share_plus/share_plus.dart';
 import '../controllers/book_controller.dart';
 import '../../../data/models/book/book.dart';
-import '../../daily_verse/controllers/daily_verse_controller.dart';
-import '../../../core/themes/app_decorations.dart';
-import '../../../core/themes/text_styles.dart';
 
-class BookTile extends StatefulWidget {
+
+class BookTile extends StatelessWidget {
   final Book book;
   final VoidCallback? onTap;
   final bool isGridView;
@@ -23,380 +22,201 @@ class BookTile extends StatefulWidget {
   });
 
   @override
-  State<BookTile> createState() => _BookTileState();
-}
-
-class _BookTileState extends State<BookTile>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _animationController;
-  late Animation<double> _scaleAnimation;
-  late Animation<double> _fadeAnimation;
-  bool _isPressed = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _animationController = AnimationController(
-      duration: AppDecorations.fastAnimation,
-      vsync: this,
-    );
-    _scaleAnimation = Tween<double>(
-      begin: 1.0,
-      end: 0.95,
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: Curves.easeInOut,
-    ));
-    _fadeAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: Curves.easeInOut,
-    ));
-    _animationController.forward();
-  }
-
-  @override
-  void dispose() {
-    _animationController.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    return widget.isGridView
-        ? _buildGridTile(context)
-        : _buildListTile(context);
-  }
-
-  Widget _buildGridTile(BuildContext context) {
-    final theme = Theme.of(context);
-    final isUrdu = widget.book.name.contains(RegExp(r'[\u0600-\u06FF]'));
-
-    return GestureDetector(
-      onTap: () => _handleTap(context),
-      onLongPress: () => _showBookOptions(context),
-      child: Container(
-        margin: EdgeInsets.only(bottom: 6.h),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(20.r),
-          boxShadow: [
-            BoxShadow(
-              color: Theme.of(context).colorScheme.primary.withOpacity(0.08),
-              blurRadius: 20,
-              offset: const Offset(0, 8),
-              spreadRadius: 0,
-            ),
-            BoxShadow(
-              color: Colors.black.withOpacity(0.04),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(20.r),
-          child: Stack(
-            children: [
-              // Subtle pattern overlay
-              Positioned.fill(
-                child: Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topRight,
-                      end: Alignment.bottomLeft,
-                      colors: [
-                        Theme.of(context).colorScheme.primary.withOpacity(0.02),
-                        Colors.transparent,
-                        Theme.of(context).colorScheme.secondary.withOpacity(0.01),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              
-              // Main content
-              Padding(
-                padding: EdgeInsets.all(20.w),
-                child: Row(
-                  children: [
-                    // Enhanced book icon
-                    _buildEnhancedBookIcon(context),
-                    SizedBox(width: 20.w),
-                    
-                    // Book details with better typography
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: isUrdu 
-                            ? CrossAxisAlignment.end 
-                            : CrossAxisAlignment.start,
-                        children: [
-                          // Title with enhanced styling
-                          _buildEnhancedTitle(context, widget.book.name, isUrdu),
-                          SizedBox(height: 12.h),
-                          
-                          // Metadata row
-                          Row(
-                            mainAxisAlignment: isUrdu 
-                                ? MainAxisAlignment.end 
-                                : MainAxisAlignment.start,
-                            children: [
-                              _buildEnhancedLanguageBadge(context),
-                              if (widget.showStats) ...[
-                                SizedBox(width: 12.w),
-                                _buildEnhancedStatsChip(context),
-                              ],
-                            ],
-                          ),
-                          SizedBox(height: 12.h),
-                          
-                          // Description or excerpt
-                          _buildBookDescription(context, isUrdu),
-                        ],
-                      ),
-                    ),
-                    SizedBox(width: 16.w),
-                    
-                    // Action button
-                    _buildActionArrow(context),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
+    return isGridView ? _buildGridTile(context) : _buildListTile(context);
   }
 
   Widget _buildListTile(BuildContext context) {
     final theme = Theme.of(context);
-    final isUrdu = widget.book.name.contains(RegExp(r'[\u0600-\u06FF]'));
+    final isUrdu = book.name.contains(RegExp(r'[\u0600-\u06FF]'));
 
     return GestureDetector(
       onTap: () => _handleTap(context),
       onLongPress: () => _showBookOptions(context),
       child: Container(
-        margin: EdgeInsets.only(bottom: 6.h),
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(20.r),
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Theme.of(context).colorScheme.surface,
-              Theme.of(context).colorScheme.surface.withOpacity(0.8),
-            ],
-          ),
-          color: Theme.of(context).colorScheme.surfaceVariant,
+          color: theme.colorScheme.surface,
+          borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: Theme.of(context).colorScheme.outline.withOpacity(0.1),
+            color: theme.colorScheme.outline.withOpacity(0.1),
             width: 1,
           ),
-          boxShadow: [
-            BoxShadow(
-              color: Theme.of(context).colorScheme.primary.withOpacity(0.08),
-              blurRadius: 20,
-              offset: const Offset(0, 8),
-              spreadRadius: 0,
+        ),
+        child: Row(
+          children: [
+            // Simple book icon
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: theme.colorScheme.primary.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(
+                Icons.book_outlined,
+                color: theme.colorScheme.primary,
+                size: 24,
+              ),
             ),
-            BoxShadow(
-              color: Colors.black.withOpacity(0.04),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
+            const SizedBox(width: 16),
+            
+            // Book info
+            Expanded(
+              child: Column(
+                crossAxisAlignment: isUrdu ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                children: [
+                  // Book name
+                  Text(
+                    book.name,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: theme.colorScheme.onSurface,
+                      fontFamily: isUrdu ? 'JameelNooriNastaleeq' : null,
+                      height: isUrdu ? 1.8 : 1.4,
+                    ),
+                    textDirection: isUrdu ? TextDirection.rtl : TextDirection.ltr,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 8),
+                  
+                  // Language and time period
+                  Row(
+                    mainAxisAlignment: isUrdu ? MainAxisAlignment.end : MainAxisAlignment.start,
+                    children: [
+                      // Language badge
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.surfaceVariant,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          book.language,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: theme.colorScheme.onSurfaceVariant,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                      
+                      // Time period (if available)
+                      if (book.timePeriod != null && book.timePeriod!.isNotEmpty) ...[
+                        const SizedBox(width: 8),
+                        Text(
+                          '• ${book.timePeriod}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            
+            // Simple arrow
+            Icon(
+              Icons.chevron_right,
+              color: theme.colorScheme.onSurfaceVariant,
+              size: 20,
             ),
           ],
         ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(20.r),
-          child: Stack(
-            children: [
-              // Subtle pattern overlay
-              Positioned.fill(
-                child: Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topRight,
-                      end: Alignment.bottomLeft,
-                      colors: [
-                        Theme.of(context).colorScheme.primary.withOpacity(0.02),
-                        Colors.transparent,
-                        Theme.of(context).colorScheme.secondary.withOpacity(0.01),
-                      ],
-                    ),
-                  ),
+      ),
+    );
+  }
+
+  Widget _buildGridTile(BuildContext context) {
+    final theme = Theme.of(context);
+    final isUrdu = book.name.contains(RegExp(r'[\u0600-\u06FF]'));
+
+    return GestureDetector(
+      onTap: () => _handleTap(context),
+      onLongPress: () => _showBookOptions(context),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: theme.colorScheme.outline.withOpacity(0.1),
+            width: 1,
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            // Book icon
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: theme.colorScheme.primary.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(
+                Icons.book_outlined,
+                color: theme.colorScheme.primary,
+                size: 24,
+              ),
+            ),
+            const SizedBox(height: 12),
+            
+            // Book name
+            Text(
+              book.name,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: theme.colorScheme.onSurface,
+                fontFamily: isUrdu ? 'JameelNooriNastaleeq' : null,
+                height: isUrdu ? 1.8 : 1.4,
+              ),
+              textDirection: isUrdu ? TextDirection.rtl : TextDirection.ltr,
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 8),
+            
+            // Language
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surfaceVariant,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                book.language,
+                style: TextStyle(
+                  fontSize: 11,
+                  color: theme.colorScheme.onSurfaceVariant,
+                  fontWeight: FontWeight.w500,
                 ),
               ),
-              
-              // Main content
-              Padding(
-                padding: EdgeInsets.all(20.w),
-                child: Row(
-                  children: [
-                    // Enhanced book icon
-                    _buildEnhancedBookIcon(context),
-                    SizedBox(width: 20.w),
-                    
-                    // Book details with better typography
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: isUrdu 
-                            ? CrossAxisAlignment.end 
-                            : CrossAxisAlignment.start,
-                        children: [
-                          // Title with enhanced styling
-                          _buildEnhancedTitle(context, widget.book.name, isUrdu),
-                          SizedBox(height: 12.h),
-                          
-                          // Metadata row
-                          Row(
-                            mainAxisAlignment: isUrdu 
-                                ? MainAxisAlignment.end 
-                                : MainAxisAlignment.start,
-                            children: [
-                              _buildEnhancedLanguageBadge(context),
-                              if (widget.showStats) ...[
-                                SizedBox(width: 12.w),
-                                _buildEnhancedStatsChip(context),
-                              ],
-                            ],
-                          ),
-                          SizedBox(height: 12.h),
-                          
-                          // Description or excerpt
-                          _buildBookDescription(context, isUrdu),
-                        ],
-                      ),
-                    ),
-                    SizedBox(width: 16.w),
-                    
-                    // Action button
-                    _buildActionArrow(context),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildBookIcon(BuildContext context) {
-    final theme = Theme.of(context);
-    return Container(
-      width: widget.isGridView ? 40.w : 50.w,
-      height: widget.isGridView ? 40.w : 50.w,
-      decoration: AppDecorations.iconContainerDecoration(
-        context,
-        theme.colorScheme.primary.withOpacity(0.1),
-      ),
-            child: Icon(
-        Icons.auto_stories_rounded,
-        size: widget.isGridView ? 20.w : 24.w,
-        color: theme.colorScheme.primary,
-      ),
-    );
-  }
-
-  Widget _buildLanguageBadge(BuildContext context) {
-    final theme = Theme.of(context);
-    final isUrdu = widget.book.language.contains(RegExp(r'[\u0600-\u06FF]'));
-    
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.secondaryContainer,
-        borderRadius: BorderRadius.circular(12.r),
-        border: Border.all(
-          color: theme.colorScheme.secondary.withOpacity(0.3),
-          width: 1,
-        ),
-      ),
-      child: Text(
-        widget.book.language,
-        style: AppTextStyles.textTheme.labelSmall?.copyWith(
-          color: theme.colorScheme.onSecondaryContainer,
-          fontFamily: isUrdu ? 'JameelNooriNastaleeq' : null,
-          fontSize: isUrdu ? 11.sp : 10.sp,
-          fontWeight: FontWeight.w600,
             ),
-        textDirection: isUrdu ? TextDirection.rtl : TextDirection.ltr,
-          ),
-    );
-  }
-
-  Widget _buildStatsRow(BuildContext context) {
-    final theme = Theme.of(context);
-    
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(
-          Icons.article_outlined,
-          size: 14.w,
-          color: theme.colorScheme.onSurfaceVariant,
+          ],
         ),
-        SizedBox(width: 4.w),
-        Text(
-          'Book',
-          style: AppTextStyles.textTheme.labelSmall?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
-            fontSize: widget.isGridView ? 10.sp : 11.sp,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildActionButtons(BuildContext context) {
-    if (widget.isGridView) {
-      return SizedBox(
-        width: double.infinity,
-        child: OutlinedButton(
-          onPressed: () => _handleTap(context),
-          style: AppDecorations.outlinedButtonStyle.copyWith(
-            padding: MaterialStateProperty.all(
-              EdgeInsets.symmetric(vertical: 8.h),
-            ),
-            minimumSize: MaterialStateProperty.all(Size.zero),
-          ),
-          child: Text(
-            'Open',
-            style: AppTextStyles.buttonTextSmall,
-                ),
-        ),
-      );
-    }
-
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        IconButton(
-          onPressed: () => _showBookOptions(context),
-          icon: Icon(
-            Icons.more_vert_rounded,
-            size: 20.w,
-          ),
-          style: IconButton.styleFrom(
-            backgroundColor: Colors.transparent,
-            padding: EdgeInsets.all(8.w),
-          ),
-        ),
-      ],
+      ),
     );
   }
 
   void _handleTap(BuildContext context) {
     HapticFeedback.lightImpact();
-    if (widget.onTap != null) {
-      widget.onTap!();
+    if (onTap != null) {
+      onTap!();
     } else {
       Get.toNamed('/book-poems', arguments: {
-        'book': widget.book,
-        'book_id': widget.book.id,
-        'book_name': widget.book.name,
+        'book': book,
+        'book_id': book.id,
+        'book_name': book.name,
         'view_type': 'book_specific',
       });
     }
@@ -407,364 +227,290 @@ class _BookTileState extends State<BookTile>
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
-      barrierColor: Colors.black.withOpacity(0.05),
       isScrollControlled: true,
       useRootNavigator: true,
-      builder: (context) => _buildOptionsBottomSheet(context),
-    );
-  }
-
-  Widget _buildOptionsBottomSheet(BuildContext context) {
-    return Container(
-      decoration: AppDecorations.bottomSheetDecoration(context),
+      builder: (context) => Container(
+      decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.1),
+              blurRadius: 20,
+              offset: const Offset(0, -5),
+            ),
+          ],
+      ),
       child: SafeArea(
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: AppDecorations.defaultPadding,
-            child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-                // Drag handle
-                Container(
-                  width: 40.w,
-                  height: 4.h,
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.4),
-                    borderRadius: BorderRadius.circular(2.r),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Modern handle bar
+              Container(
+                margin: EdgeInsets.only(top: 12.h, bottom: 24.h),
+                width: 36.w,
+                height: 4.h,
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.3),
+                  borderRadius: BorderRadius.circular(2.r),
+                ),
+              ),
+              
+              // Book info header with modern design
+              Container(
+                margin: EdgeInsets.symmetric(horizontal: 20.w),
+                padding: EdgeInsets.all(16.w),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(16.r),
+                  border: Border.all(
+                    color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
+                    width: 1,
                   ),
                 ),
-                SizedBox(height: 20.h),
-                
-                // Book info header
-                _buildBookInfoHeader(context),
-                SizedBox(height: 20.h),
-                
-                // Options
-                _buildOptionTile(
-                  context,
-                  icon: Icons.auto_awesome_outlined,
-                  title: 'Daily Wisdom',
-                  subtitle: 'Get insights from this book',
-                  onTap: () {
-                    Navigator.pop(context);
-                    Get.toNamed('/daily-verse', arguments: {'book': widget.book});
-                  },
+                child: Row(
+                children: [
+                  Container(
+                      width: 52.w,
+                      height: 52.w,
+                    decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [
+                            Theme.of(context).colorScheme.primary,
+                            Theme.of(context).colorScheme.primary.withValues(alpha: 0.8),
+                          ],
+                        ),
+                        borderRadius: BorderRadius.circular(14.r),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                    ),
+                    child: Icon(
+                        Icons.auto_stories_rounded,
+                        color: Colors.white,
+                        size: 26.w,
+                    ),
+                  ),
+                    SizedBox(width: 16.w),
+                  Expanded(
+                    child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          book.name,
+                          style: TextStyle(
+                              fontFamily: 'JameelNooriNastaleeq',
+                              fontSize: 18.sp,
+                            fontWeight: FontWeight.w600,
+                              color: Theme.of(context).colorScheme.onSurface,
+                              height: 1.4,
+                          ),
+                            textDirection: TextDirection.rtl,
+                            textAlign: TextAlign.right,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                        ),
+                          SizedBox(height: 4.h),
+                        Text(
+                          book.language,
+                          style: TextStyle(
+                              fontFamily: 'JameelNooriNastaleeq',
+                              fontSize: 14.sp,
+                              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+                              height: 1.3,
+                          ),
+                            textDirection: TextDirection.rtl,
+                            textAlign: TextAlign.right,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              ),
+              
+              SizedBox(height: 24.h),
+              
+              // Modern option tiles
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: 20.w),
+                child: Column(
+                  children: [
+                    Obx(() {
+                      final bookController = Get.find<BookController>();
+                      final isFavorite = bookController.isFavorite(book);
+                      return _buildModernOptionTile(
+                        context,
+                        icon: isFavorite ? Icons.favorite_rounded : Icons.favorite_outline_rounded,
+                        urduTitle: isFavorite ? 'پسندیدگی سے ہٹائیں' : 'پسندیدہ میں شامل کریں',
+                        englishTitle: isFavorite ? 'Remove from Favorites' : 'Add to Favorites',
+                        urduSubtitle: isFavorite ? 'اپنی پسندیدگی سے کتاب ہٹائیں' : 'اپنی پسندیدگی میں محفوظ کریں',
+                        englishSubtitle: isFavorite ? 'Remove from your favorites' : 'Save to your favorites',
+                        iconColor: isFavorite ? Colors.red : null,
+                        onTap: () {
+                          Navigator.pop(context);
+                          bookController.toggleFavorite(book);
+                        },
+                      );
+                    }),
+                    
+                    SizedBox(height: 8.h),
+                    
+                    _buildModernOptionTile(
+                context,
+                      icon: Icons.auto_awesome_rounded,
+                      urduTitle: 'روزانہ حکمت',
+                      englishTitle: 'Daily Wisdom',
+                      urduSubtitle: 'اس کتاب سے روزانہ کی حکمت حاصل کریں',
+                      englishSubtitle: 'Get daily wisdom from this book',
+                onTap: () {
+                  Navigator.pop(context);
+                  Get.toNamed('/daily-verse', arguments: {'book': book});
+                },
+              ),
+                    
+                    SizedBox(height: 8.h),
+                    
+                    _buildModernOptionTile(
+                context,
+                icon: Icons.timeline_rounded,
+                      urduTitle: 'تاریخی ٹائم لائن',
+                      englishTitle: 'Historical Timeline',
+                      urduSubtitle: 'اس کتاب کا تاریخی پس منظر دیکھیں',
+                      englishSubtitle: 'Explore the historical background',
+                onTap: () {
+                  Navigator.pop(context);
+                  Get.toNamed('/timeline', arguments: {
+                    'book_name': book.name,
+                    'book_id': book.id,
+                    'time_period': null,
+                  });
+                },
+              ),
+                    
+                    SizedBox(height: 8.h),
+                    
+                    _buildModernOptionTile(
+                context,
+                      icon: Icons.share_rounded,
+                      urduTitle: 'شیئر کریں',
+                      englishTitle: 'Share Book',
+                      urduSubtitle: 'دوسروں کے ساتھ اس کتاب کو شیئر کریں',
+                      englishSubtitle: 'Share this book with others',
+                onTap: () {
+                  Navigator.pop(context);
+                        try {
+                          final bookController = Get.find<BookController>();
+                          bookController.shareBook(book);
+                        } catch (e) {
+                          final shareText = 'Check out this amazing book: "${book.name}" from Iqbal Literature App\n\nDownload the app to explore more of Allama Iqbal\'s timeless poetry and wisdom.';
+                          Share.share(shareText, subject: book.name);
+                        }
+                      },
+                    ),
+                  ],
                 ),
-                _buildOptionTile(
-                  context,
-                  icon: Icons.timeline_rounded,
-                  title: 'Historical Timeline',
-                  subtitle: 'Explore the historical timeline',
-            onTap: () {
-              Navigator.pop(context);
-                    Get.toNamed('/timeline', arguments: {
-                      'book_id': widget.book.id,
-                      'book_name': widget.book.name,
-                      'time_period': widget.book.timePeriod,
-                    });
-                  },
-                ),
-                Obx(() {
-                  final isFav = Get.find<BookController>().isFavorite(widget.book);
-                  return _buildOptionTile(
-                    context,
-                    icon: isFav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                    title: isFav ? 'Remove from Favorites' : 'Add to Favorites',
-                    subtitle: isFav ? 'Remove this book from favorites' : 'Save this book to favorites',
-                    onTap: () {
-                      Navigator.pop(context);
-                      Get.find<BookController>().toggleFavorite(widget.book);
-                    },
-                  );
-                }),
-                _buildOptionTile(
-                  context,
-                  icon: Icons.share_rounded,
-                  title: 'Share Book',
-                  subtitle: 'Share with others',
-            onTap: () {
-              Navigator.pop(context);
-                    // Implement book sharing
-                  },
-                ),
-              ],
-            ),
+              ),
+              
+              SizedBox(height: MediaQuery.of(context).padding.bottom + 24.h),
+            ],
           ),
         ),
       ),
     );
   }
 
-  Widget _buildBookInfoHeader(BuildContext context) {
+  Widget _buildModernOptionTile(
+    BuildContext context, {
+    required IconData icon,
+    required String urduTitle,
+    required String englishTitle,
+    required String urduSubtitle,
+    required String englishSubtitle,
+    required VoidCallback onTap,
+    Color? iconColor,
+  }) {
     final theme = Theme.of(context);
-    final isUrdu = widget.book.name.contains(RegExp(r'[\u0600-\u06FF]'));
+    final effectiveIconColor = iconColor ?? theme.colorScheme.primary;
     
-    return Row(
-      children: [
-        Container(
-          width: 60.w,
-          height: 60.w,
-          decoration: AppDecorations.iconContainerDecoration(
-            context,
-            theme.colorScheme.primary,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16.r),
+        child: Container(
+          padding: EdgeInsets.all(16.w),
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surface,
+            borderRadius: BorderRadius.circular(16.r),
+            border: Border.all(
+              color: theme.colorScheme.outline.withValues(alpha: 0.08),
+              width: 1,
+            ),
           ),
-          child: Icon(
-            Icons.auto_stories_rounded,
-            size: 30.w,
-            color: theme.colorScheme.primary,
-          ),
-        ),
-        SizedBox(width: 16.w),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: isUrdu 
-                ? CrossAxisAlignment.end 
-                : CrossAxisAlignment.start,
+          child: Row(
             children: [
-              _buildStyledTitle(context, widget.book.name, isUrdu, isLarge: true),
-              SizedBox(height: 4.h),
-              Row(
-                mainAxisAlignment: isUrdu 
-                    ? MainAxisAlignment.end 
-                    : MainAxisAlignment.start,
-                children: [
-                  _buildLanguageBadge(context),
-                  if (widget.showStats) ...[
-                    SizedBox(width: 12.w),
-                    _buildStatsRow(context),
+              Container(
+                width: 44.w,
+                height: 44.w,
+                decoration: BoxDecoration(
+                  color: effectiveIconColor.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(12.r),
+                ),
+                child: Icon(
+                  icon,
+                  color: effectiveIconColor,
+                  size: 22.w,
+                ),
+              ),
+              SizedBox(width: 16.w),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      englishTitle,
+                      style: TextStyle(
+                        fontSize: 16.sp,
+                        fontWeight: FontWeight.w600,
+                        color: theme.colorScheme.onSurface,
+                        height: 1.3,
+                      ),
+                      textAlign: TextAlign.right,
+                    ),
+                    SizedBox(height: 4.h),
+                    Text(
+                      urduSubtitle,
+                      style: TextStyle(
+                        fontFamily: 'JameelNooriNastaleeq',
+                        fontSize: 13.sp,
+                        color: theme.colorScheme.onSurface.withValues(alpha: 0.65),
+                        height: 1.4,
+                      ),
+                      textDirection: TextDirection.rtl,
+                      textAlign: TextAlign.right,
+                    ),
                   ],
-                ],
+                ),
+              ),
+              SizedBox(width: 12.w),
+              Icon(
+                Icons.arrow_forward_ios_rounded,
+                size: 16.w,
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.3),
               ),
             ],
           ),
         ),
-      ],
-    );
-  }
-
-  Widget _buildOptionTile(
-    BuildContext context, {
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required VoidCallback onTap,
-  }) {
-    final theme = Theme.of(context);
-    
-    return ListTile(
-      contentPadding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 4.h),
-      leading: Container(
-        padding: EdgeInsets.all(8.w),
-        decoration: AppDecorations.iconContainerDecoration(
-          context,
-          theme.colorScheme.primary,
-        ),
-        child: Icon(
-          icon,
-          color: theme.colorScheme.primary,
-          size: 20.w,
-        ),
-      ),
-      title: Text(
-        title,
-        style: AppTextStyles.getTitleStyle(context),
-      ),
-      subtitle: Text(
-        subtitle,
-        style: AppTextStyles.getBodyStyle(context).copyWith(
-          color: theme.colorScheme.onSurfaceVariant,
-        ),
-      ),
-      onTap: onTap,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12.r),
       ),
     );
   }
 
-  Widget _buildStyledTitle(BuildContext context, String text, bool isUrdu, {bool isLarge = false}) {
-    final theme = Theme.of(context);
-    final baseStyle = AppTextStyles.getTitleStyle(
-      context,
-      isUrdu: isUrdu,
-      isLarge: isLarge,
-    ).copyWith(
-      fontWeight: FontWeight.w700,
-      letterSpacing: isUrdu ? 0 : -0.2,
-    );
 
-    return ShaderMask(
-      shaderCallback: (bounds) => LinearGradient(
-        colors: [theme.colorScheme.primary, theme.colorScheme.secondary],
-      ).createShader(Rect.fromLTWH(0, 0, bounds.width, bounds.height)),
-      blendMode: BlendMode.srcIn,
-      child: Text(
-        text,
-        style: baseStyle,
-        textDirection: isUrdu ? TextDirection.rtl : TextDirection.ltr,
-        maxLines: isLarge ? 2 : 3,
-        overflow: TextOverflow.ellipsis,
-      ),
-    );
-  }
-
-  Widget _buildEnhancedBookIcon(BuildContext context) {
-    final theme = Theme.of(context);
-    return Container(
-      width: 60.w,
-      height: 60.w,
-      decoration: BoxDecoration(
-        color: theme.colorScheme.primary,
-        borderRadius: BorderRadius.circular(18.r),
-        boxShadow: [
-          BoxShadow(
-            color: theme.colorScheme.primary.withOpacity(0.25),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Icon(
-        Icons.auto_stories_rounded,
-        size: 28.w,
-        color: Colors.white,
-      ),
-    );
-  }
-
-  Widget _buildEnhancedTitle(BuildContext context, String text, bool isUrdu) {
-    final theme = Theme.of(context);
-    return Text(
-      text,
-      style: AppTextStyles.getTitleStyle(
-        context,
-        isUrdu: isUrdu,
-        isLarge: true,
-      ).copyWith(
-        fontSize: 20.sp,
-        fontWeight: FontWeight.w700,
-        height: isUrdu ? 1.6 : 1.3,
-        letterSpacing: isUrdu ? 0 : -0.3,
-        color: theme.colorScheme.primary,
-      ),
-      textDirection: isUrdu ? TextDirection.rtl : TextDirection.ltr,
-      maxLines: 2,
-      overflow: TextOverflow.ellipsis,
-    );
-  }
-
-  Widget _buildEnhancedLanguageBadge(BuildContext context) {
-    final theme = Theme.of(context);
-    final isUrdu = widget.book.language.contains(RegExp(r'[\u0600-\u06FF]'));
-    
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceVariant,
-        borderRadius: BorderRadius.circular(20.r),
-        border: Border.all(
-          color: theme.colorScheme.outline.withOpacity(0.2),
-          width: 1,
-        ),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            isUrdu ? Icons.translate_rounded : Icons.language_rounded,
-            size: 14.w,
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
-          SizedBox(width: 6.w),
-          Text(
-            widget.book.language,
-            style: AppTextStyles.textTheme.labelMedium?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-              fontFamily: isUrdu ? 'JameelNooriNastaleeq' : null,
-              fontSize: isUrdu ? 12.sp : 11.sp,
-              fontWeight: FontWeight.w600,
-            ),
-            textDirection: isUrdu ? TextDirection.rtl : TextDirection.ltr,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildEnhancedStatsChip(BuildContext context) {
-    final theme = Theme.of(context);
-    
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 6.h),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceVariant,
-        borderRadius: BorderRadius.circular(16.r),
-        border: Border.all(
-          color: theme.colorScheme.outline.withOpacity(0.2),
-          width: 1,
-        ),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            Icons.auto_stories_outlined,
-            size: 12.w,
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
-          SizedBox(width: 4.w),
-          Text(
-            'کتاب',
-            style: AppTextStyles.textTheme.labelSmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-              fontSize: 10.sp,
-              fontFamily: 'JameelNooriNastaleeq',
-              fontWeight: FontWeight.w600,
-            ),
-            textDirection: TextDirection.rtl,
-          ),
-        ],
-      ),
-    );
-  }
-
- Widget _buildBookDescription(BuildContext context, bool isUrdu) { 
-    final theme = Theme.of(context);
-    // You can customize this based on your book model
-    String description = ''; // Removed hardcoded description
-    
-    return Text(
-      description,
-      style: AppTextStyles.getBodyStyle(context).copyWith(
-        fontSize: 14.sp,
-        color: theme.colorScheme.onSurface.withOpacity(0.6),
-        height: 1.4,
-        fontFamily: isUrdu ? 'JameelNooriNastaleeq' : null,
-      ),
-      textDirection: isUrdu ? TextDirection.rtl : TextDirection.ltr,
-      maxLines: 1,
-      overflow: TextOverflow.ellipsis,
-    );
-  }
-
-  Widget _buildActionArrow(BuildContext context) {
-    final theme = Theme.of(context);
-    return Container(
-      width: 40.w,
-      height: 40.w,
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceVariant,
-        borderRadius: BorderRadius.circular(12.r),
-        border: Border.all(
-          color: theme.colorScheme.outline.withOpacity(0.2),
-          width: 1,
-        ),
-      ),
-      child: Icon(
-        Icons.arrow_forward_ios_rounded,
-        size: 16.w,
-        color: theme.colorScheme.onSurfaceVariant,
-      ),
-    );
-  }
 }

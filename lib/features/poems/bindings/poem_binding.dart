@@ -10,7 +10,6 @@ class PoemBinding extends Bindings {
         PoemController(
           Get.find(),
           Get.find(),
-          Get.find(),
         ),
         permanent: true,
       );

@@ -1,7 +1,7 @@
 import 'dart:ui' as ui;
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
-import 'package:image/image.dart' as img;
+
 import 'dart:typed_data';
 
 class ScreenshotUtil {
@@ -19,7 +19,6 @@ class ScreenshotUtil {
         return byteData.buffer.asUint8List();
       }
     } catch (e) {
-      print('Error capturing screenshot: $e');
       // If the initial capture fails with high resolution, try again with a lower resolution
       if (pixelRatio > 1.5) {
         return captureWidget(boundary, pixelRatio: 1.5);

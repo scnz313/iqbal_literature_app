@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
-import '../../../core/localization/language_constants.dart';
+
 
 class LanguageSelector extends StatelessWidget {
   final String selectedLanguage;
@@ -54,7 +54,7 @@ class LanguageSelector extends StatelessWidget {
 
     return Material(
       color: isSelected
-          ? Theme.of(context).colorScheme.primary.withOpacity(0.1)
+          ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.1)
           : Colors.transparent,
       child: InkWell(
         onTap: () {

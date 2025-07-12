@@ -10,16 +10,16 @@ import 'config/routes/app_pages.dart';
 import 'firebase_options.dart';
 import 'services/cache/cache_service.dart';
 import 'services/api/gemini_api.dart';
-import 'package:flutter/foundation.dart';
+
 import 'dart:io';
-import 'package:flutter_displaymode/flutter_displaymode.dart';
+
 import 'data/repositories/book_repository.dart';
 import 'data/repositories/poem_repository.dart';
 import 'services/cache/analysis_cache_service.dart';
 import 'services/api/deepseek_api_client.dart';
 import 'services/analysis/text_analysis_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'core/themes/app_theme.dart';
+
 import 'features/home/controllers/home_controller.dart';
 import 'data/services/analytics_service.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
@@ -34,24 +34,19 @@ import 'features/settings/controllers/settings_controller.dart';
 import 'config/providers/theme_provider.dart';
 import 'config/providers/locale_provider.dart';
 import 'config/providers/font_scale_provider.dart';
+import 'core/controllers/font_controller.dart';
 import 'core/localization/app_translations.dart';
 import 'data/models/notes/word_note.dart';
 import 'data/repositories/note_repository.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'services/share/background_asset_manager.dart';
 
 Future<void> main() async {
   // Ensure that plugin services are initialized so that `availableCameras()`
   // can be called before `runApp()`
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Enable 120 Hz / highest available refresh rate on supported Android devices
-  if (Platform.isAndroid) {
-    try {
-      await FlutterDisplayMode.setHighRefreshRate();
-    } catch (e) {
-      debugPrint('⚠️ Unable to set high refresh rate: $e');
-    }
-  }
+  // Note: High refresh rate is now handled automatically by Flutter
 
   // Optimize system UI initialization
   SystemChrome.setPreferredOrientations([
@@ -62,22 +57,37 @@ Future<void> main() async {
   ]);
 
   try {
-    // Platform-specific Firebase initialization logic
     if (Platform.isIOS) {
-      // iOS: native side (AppDelegate.swift) handles Firebase initialization.
-      // Just wait a bit to ensure it's done.
-      debugPrint('⏳ Waiting for native Firebase initialization...');
-      await Future.delayed(const Duration(seconds: 2));
-      debugPrint('✅ Proceeding after waiting; current Firebase apps: ${Firebase.apps.length}');
-    } else {
-      // Android/others: initialize from Dart side if needed
+      // iOS: wait for native FirebaseApp.configure() to finish (AppDelegate.swift)
+      debugPrint('⏳ Waiting for native Firebase initialization (iOS)...');
+      const int maxAttempts = 20; // 20 × 100 ms = 2 s
+      for (var i = 0; i < maxAttempts && Firebase.apps.isEmpty; i++) {
+        await Future.delayed(const Duration(milliseconds: 100));
+      }
+
       if (Firebase.apps.isEmpty) {
-        await Firebase.initializeApp(
-          options: DefaultFirebaseOptions.currentPlatform,
-        );
-        debugPrint('🔥 Firebase initialized from Dart side (non-iOS)');
+        debugPrint('⚠️ Native init not detected; initializing from Dart side…');
+        try {
+          await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+          debugPrint('✅ Firebase initialized from Dart fallback');
+        } on FirebaseException catch (fe) {
+          if (fe.code == 'duplicate-app') {
+            debugPrint('ℹ️ Duplicate Firebase app – safe to ignore');
+          } else {
+            rethrow;
+          }
+        }
       } else {
-        debugPrint('🔥 Firebase already initialized (${Firebase.apps.length} apps)');
+        debugPrint('✅ Firebase detected (${Firebase.apps.length} app(s))');
+      }
+    } else {
+      // Android & other platforms
+      if (Firebase.apps.isEmpty) {
+        debugPrint('⏳ Initializing Firebase from Dart side...');
+        await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+        debugPrint('✅ Firebase initialized successfully (${Firebase.apps.length} app(s))');
+      } else {
+        debugPrint('🔥 Firebase already initialized (${Firebase.apps.length} app(s))');
       }
     }
 
@@ -102,6 +112,12 @@ Future<void> main() async {
     // Preload fonts for PDF export in the background
     FontDownloader.preloadFonts().then((_) {
       debugPrint('✅ Font preloading completed for PDF export');
+    });
+
+    // Preload common background images for share functionality
+    final backgroundManager = BackgroundAssetManager();
+    backgroundManager.preloadCommonBackgrounds().then((_) {
+      debugPrint('✅ Common background images preloaded');
     });
 
     // Initialize services
@@ -158,6 +174,12 @@ Future<void> main() async {
 
     final fontScaleProvider = FontScaleProvider(storageService);
     Get.put<FontScaleProvider>(fontScaleProvider, permanent: true);
+    
+    // Initialize FontController - this is needed by ScaledText widget
+    final fontController = Get.put<FontController>(
+      FontController(storageService),
+      permanent: true,
+    );
 
     // Initialize API services (DeepSeek is optional)
     DeepSeekApiClient? deepseekClient;
@@ -178,8 +200,7 @@ Future<void> main() async {
       // Continue without DeepSeek - it's optional
     }
 
-    final textAnalysisService =
-        TextAnalysisService(deepseekClient, analysisCacheService);
+    final textAnalysisService = TextAnalysisService();
     Get.put<TextAnalysisService>(textAnalysisService, permanent: true);
 
     // Initialize SearchService
@@ -205,7 +226,6 @@ Future<void> main() async {
       PoemController(
         poemRepository,
         analyticsService,
-        textAnalysisService,
       ),
       permanent: true,
     );

@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../controllers/splash_controller.dart';
-import 'package:animated_text_kit/animated_text_kit.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
+
 class SplashView extends GetView<SplashController> {
-  const SplashView({Key? key}) : super(key: key);
+  const SplashView({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -146,17 +146,20 @@ class SplashView extends GetView<SplashController> {
         ),
       ),
       child: Center(
+        child: FittedBox(
+          fit: BoxFit.contain,
         child: Padding(
-          padding: EdgeInsets.only(
-              top: 8.h), // Slight adjustment for vertical centering
+            padding: EdgeInsets.all(logoSize * 0.15), // Add padding to ensure it fits within circle
           child: Text(
             '﷽',
             style: TextStyle(
-              fontSize: logoSize * 0.45,
+                fontSize: logoSize * 0.4, // Increased size
               color: colorScheme.primary.withOpacity(0.85),
               height: 1.0,
+                fontFamily: 'JameelNooriNastaleeq',
+              ),
+              textAlign: TextAlign.center,
             ),
-            textAlign: TextAlign.center,
           ),
         ),
       ),
@@ -213,31 +216,25 @@ class SplashView extends GetView<SplashController> {
                         child: Align(
                           alignment:
                               isUrdu ? Alignment.centerRight : Alignment.center,
-                          child: AnimatedTextKit(
+                          child: _TypewriterText(
+                            text: controller.quoteText.value,
+                            style: textTheme.bodyLarge?.copyWith(
+                              color: colorScheme.onSurface,
+                              fontSize: isTablet ? 20.sp : 18.sp,
+                              fontStyle: isUrdu ? null : FontStyle.italic,
+                              fontFamily:
+                                  isUrdu ? 'JameelNooriNastaleeq' : null,
+                              height: isUrdu ? 1.8 : 1.5,
+                            ),
+                            textAlign:
+                                isUrdu ? TextAlign.right : TextAlign.center,
+                            speed: const Duration(milliseconds: 40),
                             onFinished: () {
                               // Only mark animation as complete if no translation or after showing translation
                               if (!hasTranslation) {
                                 controller.onAnimationComplete();
                               }
                             },
-                            animatedTexts: [
-                              TypewriterAnimatedText(
-                                controller.quoteText.value,
-                                textStyle: textTheme.bodyLarge?.copyWith(
-                                  color: colorScheme.onSurface,
-                                  fontSize: isTablet ? 20.sp : 18.sp,
-                                  fontStyle: isUrdu ? null : FontStyle.italic,
-                                  fontFamily:
-                                      isUrdu ? 'JameelNooriNastaleeq' : null,
-                                  height: isUrdu ? 1.8 : 1.5,
-                                ),
-                                textAlign:
-                                    isUrdu ? TextAlign.right : TextAlign.center,
-                                speed: const Duration(milliseconds: 40),
-                              ),
-                            ],
-                            totalRepeatCount: 1,
-                            displayFullTextOnTap: true,
                           ),
                         ),
                       ),
@@ -266,27 +263,21 @@ class SplashView extends GetView<SplashController> {
                                 ),
                               ),
                               Expanded(
-                                child: AnimatedTextKit(
+                                child: _TypewriterText(
+                                  text: controller.quoteTranslation.value,
+                                  style: textTheme.bodyLarge?.copyWith(
+                                    color: colorScheme.onSurface
+                                        .withOpacity(0.8),
+                                    fontSize: isTablet ? 16.sp : 14.sp,
+                                    fontStyle: FontStyle.italic,
+                                    height: 1.4,
+                                    letterSpacing: 0.2,
+                                  ),
+                                  textAlign: TextAlign.left,
+                                  speed: const Duration(milliseconds: 20),
                                   onFinished: () {
                                     controller.onAnimationComplete();
                                   },
-                                  animatedTexts: [
-                                    TypewriterAnimatedText(
-                                      controller.quoteTranslation.value,
-                                      textStyle: textTheme.bodyLarge?.copyWith(
-                                        color: colorScheme.onSurface
-                                            .withOpacity(0.8),
-                                        fontSize: isTablet ? 16.sp : 14.sp,
-                                        fontStyle: FontStyle.italic,
-                                        height: 1.4,
-                                        letterSpacing: 0.2,
-                                      ),
-                                      textAlign: TextAlign.left,
-                                      speed: const Duration(milliseconds: 20),
-                                    ),
-                                  ],
-                                  totalRepeatCount: 1,
-                                  displayFullTextOnTap: true,
                                 ),
                               ),
                             ],
@@ -428,4 +419,70 @@ class BackgroundPatternPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+class _TypewriterText extends StatefulWidget {
+  final String text;
+  final TextStyle? style;
+  final TextAlign textAlign;
+  final Duration speed;
+  final VoidCallback? onFinished;
+
+  const _TypewriterText({
+    required this.text,
+    this.style,
+    this.textAlign = TextAlign.center,
+    this.speed = const Duration(milliseconds: 40),
+    this.onFinished,
+  });
+
+  @override
+  State<_TypewriterText> createState() => _TypewriterTextState();
+}
+
+class _TypewriterTextState extends State<_TypewriterText>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<int> _animation;
+  
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: widget.speed * widget.text.length,
+      vsync: this,
+    );
+    
+    _animation = IntTween(
+      begin: 0,
+      end: widget.text.length,
+    ).animate(CurvedAnimation(
+      parent: _controller,
+      curve: Curves.linear,
+    ));
+    
+    _controller.forward().then((_) {
+      widget.onFinished?.call();
+    });
+  }
+  
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+  
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _animation,
+      builder: (context, child) {
+        return Text(
+          widget.text.substring(0, _animation.value),
+          style: widget.style,
+          textAlign: widget.textAlign,
+        );
+      },
+    );
+  }
 }

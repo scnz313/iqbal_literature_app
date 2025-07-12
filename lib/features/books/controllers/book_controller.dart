@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:share_plus/share_plus.dart';
-import '../../../config/routes/app_pages.dart';  // Add this import
+
 import '../../../data/models/book/book.dart';
 import '../../../data/repositories/book_repository.dart';
 import '../../../data/services/analytics_service.dart';
@@ -104,7 +104,6 @@ class BookController extends GetxController {
       arguments: args,
       binding: BindingsBuilder(() {
         Get.put(PoemController(
-          Get.find(),  // BookRepository
           Get.find(),  // PoemRepository
           Get.find(),  // AnalyticsService
         ));
